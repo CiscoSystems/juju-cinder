@@ -1,0 +1,17 @@
+[DEBUG] Calling 'juju status'...
+[DEBUG] Destroying service: nova-volume
+[DEBUG] Calling juju, attempt 1: juju destroy-service nova-volume
+[DEBUG] Destroying service: keystone
+[DEBUG] Calling juju, attempt 1: juju destroy-service keystone
+[DEBUG] Destroying service: nova-cloud-controller
+[DEBUG] Calling juju, attempt 1: juju destroy-service nova-cloud-controller
+[DEBUG] Destroying service: mysql
+[DEBUG] Calling juju, attempt 1: juju destroy-service mysql
+[DEBUG] Terminating machine: 16
+[DEBUG] Calling juju, attempt 1: juju terminate-machine 16
+[DEBUG] Terminating machine: 13
+[DEBUG] Calling juju, attempt 1: juju terminate-machine 13
+[DEBUG] Terminating machine: 14
+[DEBUG] Calling juju, attempt 1: juju terminate-machine 14
+[DEBUG] Terminating machine: 15
+[DEBUG] Calling juju, attempt 1: juju terminate-machine 15

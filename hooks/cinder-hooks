@@ -1,0 +1,131 @@
+#!/bin/bash -e
+
+CHARM_DIR=$(dirname $0)
+if [[ -e $CHARM_DIR/cinder-common ]] ; then
+  . $CHARM_DIR/cinder-common
+else
+  juju-log "ERROR: Could not source cinder-common from $CHARM_DIR."
+  exit 1
+fi
+
+install_hook() {
+  install_source=$(config-get cinder-release)
+  setup_install_source "$install_source"
+  apt-get update || true # ignore transient archive errors
+  pkgs=$(determine_packages)
+  juju-log "cinder: Installing following packages: $pkgs"
+  DEBIAN_FRONTEND=noninteractive apt-get -y install $pkgs
+
+  if service_enabled "volume" ; then
+    # prepare local storage if volume service is being installed.
+    block_dev=$(config-get block-device)
+    vol_group=$(config-get volume-group)
+    overwrite=$(config-get overwrite)
+    prepare_storage "$block_dev" "$vol_group" "$overwrite"
+    set_or_update "volume_group" "$vol_group"
+    cinder_ctl cinder-volume restart
+  fi
+}
+
+db_joined() {
+  juju-log "cinder: Requesting database access to cinder database."
+  relation-set database=$(config-get cinder-db) username=$(config-get db-user)
+  relation-set hostname=$(unit-get private-address)
+}
+
+db_changed() {
+  db_host=$(relation-get private-address)
+  db_password=$(relation-get password)
+
+  [[ -z "$db_host" ]] || [[ -z "$db_password" ]] &&
+    juju-log "Missing DB_HOST|DB_PASSWORD, peer not ready? Will retry." &&
+    exit 0
+
+  db_user=$(config-get db-user)
+  cinder_db=$(config-get cinder-db)
+  juju-log "cinder: Configuring cinder for database access to $cinder_db@$db_host"
+  set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$cinder_db"
+  cinder_ctl all stop
+  /usr/bin/cinder-manage db sync
+  cinder_ctl all start
+}
+
+amqp_joined() {
+  juju-log "cinder: Requesting amqp access to vhost $rabbit_vhost."
+  relation-set username=$(config-get rabbit-user)
+  relation-set vhost=$(config-get rabbit-vhost)
+}
+
+amqp_changed() {
+  rabbit_host=$(relation-get private-address)
+  rabbit_password=$(relation-get password)
+  [[ -z "$rabbit_host" ]] || [[ -z "$rabbit_password" ]] &&
+    juju-log "Missing rabbit_host||rabbit_passwd, peer not ready? Will retry." && exit 0
+  juju-log "cinder: Configuring cinder for amqp access to $rabbit_host:$rabbit_vhost"
+  rabbit_user=$(config-get rabbit-user)
+  rabbit_vhost=$(config-get rabbit-vhost)
+  set_or_update rabbit_host $rabbit_host
+  set_or_update rabbit_userid $rabbit_user
+  set_or_update rabbit_password $rabbit_password
+  set_or_update rabbit_virtual_host $rabbit_vhost
+  cinder_ctl all restart
+}
+
+keystone_joined() {
+  port=$(config-get api-listening-port)
+  url="http://$(unit-get private-address):$port/v1/\$(tenant_id)s"
+  relation-set service="cinder" \
+    region="RegionOne" public_url="$url" admin_url="$url" internal_url="$url"
+}
+
+keystone_changed() {
+  service_port=$(relation-get service_port)
+  auth_port=$(relation-get auth_port)
+  service_username=$(relation-get service_username)
+  service_password=$(relation-get service_password)
+  service_tenant=$(relation-get service_tenant)
+
+  [[ -z "$service_port" ]] || [[ -z "$auth_port" ]] ||
+    [[ -z "$service_username" ]] || [[ -z "$service_password" ]] ||
+    [[ -z "$service_tenant" ]] && juju-log "keystone_changed: Peer not ready" &&
+      exit 0
+
+  keystone_host=$(relation-get private-address)
+
+  # update keystone authtoken settings accordingly
+  set_or_update "service_host" "$keystone_host" "$API_CONF"
+  set_or_update "service_port" "$service_port" "$API_CONF"
+  set_or_update "auth_host" "$keystone_host" "$API_CONF"
+  set_or_update "auth_port" "$auth_port" "$API_CONF"
+  set_or_update "admin_tenant_name" "$service_tenant" "$API_CONF"
+  set_or_update "admin_user" "$service_username" "$API_CONF"
+  set_or_update "admin_password" "$service_password" "$API_CONF"
+  set_or_update "auth_protocol" "http" "$API_CONF"
+  set_or_update "auth_strategy" "keystone" "$CINDER_CONF"
+
+  cinder_ctl all restart
+}
+
+volume_joined() {
+  relation-set volume_service="cinder"
+}
+
+volume_changed() {
+  # nothing todo here yet.
+  exit 0
+}
+
+arg0=$(basename $0)
+juju-log "cinder: Attempting to fire hook for: $arg0"
+case $arg0 in
+  "install") install_hook ;;
+  "shared-db-relation-joined") db_joined ;;
+  "shared-db-relation-changed") db_changed ;;
+  "amqp-relation-joined") amqp_joined ;;
+  "amqp-relation-changed") amqp_changed ;;
+  "identity-service-relation-joined") keystone_joined ;;
+  "identity-service-relation-changed") keystone_changed ;;
+  "cinder-volume-service-relation-joined") volume_joined ;;
+  "cinder-volume-service-relation-changed") volume_changed ;;
+  *) exit 0
+esac

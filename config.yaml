@@ -1,0 +1,51 @@
+options:
+    cinder-release:
+        default: distro
+        type: string
+        description: |
+            Installation source from which to install.  Valid choices: distro,
+            ppa:somewhere/else
+    enabled-services:
+        default: all
+        type: string
+        description: |
+            If splitting cinder services between units, define which services
+            to install and configure.
+    block-device:
+        default: sdb
+        type: string
+        description: |
+            The *available* block device on which to create LVM volume group.
+    volume-group:
+        default: cinder-volumes
+        type: string
+        description: Name of volume group to create and store Cinder volumes.
+    overwrite:
+        default: "false"
+        type: string
+        description: |
+            If true, charm will attempt to overwrite block devices containin
+             previous filesystems or LVM, assuming it is not in use.  db-user:
+        default: cinder
+        type: string
+        description: Username to request database access.
+    cinder-db:
+        default: cinder
+        type: string
+        description: Database to request access.
+    rabbit-user:
+        default: cinder
+        type: string
+        description: Username to request access on rabbitmq-server.
+    rabbit-vhost:
+        default: cinder
+        type: string
+        description: RabbitMQ virtual host to request access on rabbitmq-server.
+    api-listening-port:
+        default: 8776
+        type: int
+        description: OpenStack Volume API listening port.
+    config-flags:
+        default: None
+        type: string
+        description: Comma separated list of key=value config flags to be set in cinder.conf

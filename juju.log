@@ -1,0 +1,80 @@
+2012-09-21 17:52:34,141 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:34,141 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:34,141 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:34,141 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:34,143 INFO Connecting to environment...
+2012-09-21 17:52:36,151 INFO Connected to environment.
+2012-09-21 17:52:37,124 INFO Service 'nova-volume' destroyed.
+2012-09-21 17:52:37,124 INFO 'destroy_service' command finished successfully
+2012-09-21 17:52:37,572 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:37,572 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:37,572 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:37,572 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:37,573 INFO Connecting to environment...
+2012-09-21 17:52:39,589 INFO Connected to environment.
+2012-09-21 17:52:40,608 INFO Service 'keystone' destroyed.
+2012-09-21 17:52:40,609 INFO 'destroy_service' command finished successfully
+2012-09-21 17:52:41,047 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:41,047 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:41,047 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:41,047 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:41,048 INFO Connecting to environment...
+2012-09-21 17:52:43,035 INFO Connected to environment.
+2012-09-21 17:52:43,990 INFO Service 'nova-cloud-controller' destroyed.
+2012-09-21 17:52:43,990 INFO 'destroy_service' command finished successfully
+2012-09-21 17:52:44,427 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:44,428 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:44,428 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:44,428 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:44,429 INFO Connecting to environment...
+2012-09-21 17:52:46,524 INFO Connected to environment.
+2012-09-21 17:52:47,378 INFO Service 'mysql' destroyed.
+2012-09-21 17:52:47,379 INFO 'destroy_service' command finished successfully
+2012-09-21 17:52:47,822 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:47,822 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:47,822 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:47,822 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:47,823 INFO Connecting to environment...
+2012-09-21 17:52:49,836 INFO Connected to environment.
+2012-09-21 17:52:49,837 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:49,837 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:49,838 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:49,838 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:50,158 INFO Machines terminated: 16
+2012-09-21 17:52:50,158 INFO 'terminate_machine' command finished successfully
+2012-09-21 17:52:50,604 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:50,605 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:50,605 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:50,605 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:50,606 INFO Connecting to environment...
+2012-09-21 17:52:52,668 INFO Connected to environment.
+2012-09-21 17:52:52,669 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:52,669 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:52,669 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:52,669 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:52,988 INFO Machines terminated: 13
+2012-09-21 17:52:52,989 INFO 'terminate_machine' command finished successfully
+2012-09-21 17:52:53,427 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:53,427 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:53,427 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:53,427 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:53,428 INFO Connecting to environment...
+2012-09-21 17:52:55,482 INFO Connected to environment.
+2012-09-21 17:52:55,483 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:55,483 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:55,483 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:55,484 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:55,801 INFO Machines terminated: 14
+2012-09-21 17:52:55,802 INFO 'terminate_machine' command finished successfully
+2012-09-21 17:52:56,243 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:56,243 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:56,243 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:56,243 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:56,244 INFO Connecting to environment...
+2012-09-21 17:52:58,284 INFO Connected to environment.
+2012-09-21 17:52:58,285 WARNING ssl-hostname-verification is disabled for this environment
+2012-09-21 17:52:58,285 WARNING EC2 API calls encrypted but not authenticated
+2012-09-21 17:52:58,286 WARNING S3 API calls encrypted but not authenticated
+2012-09-21 17:52:58,286 WARNING Ubuntu Cloud Image lookups encrypted but not authenticated
+2012-09-21 17:52:58,605 INFO Machines terminated: 15
+2012-09-21 17:52:58,606 INFO 'terminate_machine' command finished successfully
