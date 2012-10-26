@@ -106,6 +106,55 @@ keystone_changed() {
   cinder_ctl all restart
 }
 
+function ceph_joined {
+  mkdir -p /etc/ceph
+  apt-get -y install ceph-common || exit 1
+}
+
+function ceph_changed {
+  SERVICE_NAME=`echo $JUJU_UNIT_NAME | cut -d / -f 1`
+  KEYRING=/etc/ceph/ceph.client.$SERVICE_NAME.keyring
+  KEY=`relation-get key`
+  if [ -n "$KEY" ]; then
+    # But only once
+    if [ ! -f $KEYRING ]; then
+      ceph-authtool $KEYRING \
+        --create-keyring --name=client.$SERVICE_NAME \
+        --add-key="$KEY"
+      chmod +r $KEYRING
+    fi
+  else
+    # No key - bail for the time being
+    exit 0
+  fi
+
+  MONS=`relation-list`
+  mon_hosts=""
+  for mon in $MONS; do
+    mon_hosts="$mon_hosts `relation-get private-address $mon`:6789"
+  done
+  cat > /etc/ceph/ceph.conf << EOF
+[global]
+ auth supported = $(relation-get auth)
+ keyring = /etc/ceph/\$cluster.\$name.keyring
+ mon host = $mon_hosts
+EOF
+
+  # XXX: Horrid kludge to make cinder-volume use
+  # a different ceph username than admin
+  echo "CEPH_ARGS=--id $SERVICE_NAME" >> /etc/environment
+
+  # Create the cinder pool if it does not already exist
+  if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
+    rados --id $SERVICE_NAME mkpool cinder
+  fi
+
+  # Reconfigure cinder-volume
+  set_or_update volume_driver cinder.volume.driver.RBDDriver
+  set_or_update rbd_pool cinder
+  service_ctl "cinder-volume" restart
+}
+
 volume_joined() {
   relation-set volume_service="cinder"
 }
@@ -125,6 +174,8 @@ case $arg0 in
   "amqp-relation-changed") amqp_changed ;;
   "identity-service-relation-joined") keystone_joined ;;
   "identity-service-relation-changed") keystone_changed ;;
+  "ceph-relation-joined") ceph_joined;;
+  "ceph-relation-changed") ceph_changed;;
   "cinder-volume-service-relation-joined") volume_joined ;;
   "cinder-volume-service-relation-changed") volume_changed ;;
   *) exit 0

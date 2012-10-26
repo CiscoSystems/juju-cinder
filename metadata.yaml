@@ -13,3 +13,5 @@ requires:
     interface: rabbitmq
   identity-service:
     interface: keystone
+  ceph:
+    interface: ceph-client
