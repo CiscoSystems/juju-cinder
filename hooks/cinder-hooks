@@ -152,7 +152,7 @@ EOF
   # Reconfigure cinder-volume
   set_or_update volume_driver cinder.volume.driver.RBDDriver
   set_or_update rbd_pool cinder
-  service_ctl "cinder-volume" restart
+  cinder_ctl "cinder-volume" restart
 }
 
 volume_joined() {
