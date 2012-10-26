@@ -25,7 +25,8 @@ options:
         type: string
         description: |
             If true, charm will attempt to overwrite block devices containin
-             previous filesystems or LVM, assuming it is not in use.  db-user:
+            previous filesystems or LVM, assuming it is not in use.
+    db-user:
         default: cinder
         type: string
         description: Username to request database access.
