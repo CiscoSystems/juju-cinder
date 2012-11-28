@@ -27,11 +27,13 @@ install_hook() {
   if service_enabled "volume" ; then
     # prepare local storage if volume service is being installed.
     block_dev=$(config-get block-device)
-    vol_group=$(config-get volume-group)
-    overwrite=$(config-get overwrite)
-    prepare_storage "$block_dev" "$vol_group" "$overwrite"
-    set_or_update "volume_group" "$vol_group"
-    cinder_ctl cinder-volume restart
+    if [[ "$block_dev" != "None" && "$block_dev" != "none" ]] ; then
+      vol_group=$(config-get volume-group)
+      overwrite=$(config-get overwrite)
+      prepare_storage "$block_dev" "$vol_group" "$overwrite"
+      set_or_update "volume_group" "$vol_group"
+      cinder_ctl cinder-volume restart
+    fi
   fi
 }
 

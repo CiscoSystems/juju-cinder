@@ -26,6 +26,8 @@ options:
         type: string
         description: |
             The *available* block device on which to create LVM volume group.
+            May also be set to None for deployments that will not need local
+            storage (eg, Ceph/RBD-backed volumes).
     volume-group:
         default: cinder-volumes
         type: string
