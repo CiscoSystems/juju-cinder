@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-ENABLED_SERVICES=$(config-get enabled-services)
+CHARM="cinder"
 
 COMMON_PACKAGES="cinder-common python-mysqldb"
 API_PACKAGES="cinder-api"
@@ -10,20 +10,19 @@ SCHED_PACKAGES="cinder-scheduler"
 CINDER_CONF="/etc/cinder/cinder.conf"
 API_CONF="/etc/cinder/api-paste.ini"
 
-HOSTNAME=$(unit-get private-address)
-
-
-error_out() {
-  juju-log "$@"
-  exit 1
-}
+if [[ -e $CHARM_DIR/lib/openstack-common ]] ; then
+  . $CHARM_DIR/lib/openstack-common
+else
+  juju-log "Couldn't load $CHARM_DIR/openstack-common" && exit 1
+fi
 
 service_enabled() {
   # return 0 if a specific cinder service is enabled in config
   # "enabled-services"
-  [[ "$ENABLED_SERVICES" == "all" ]] && return 0
+  local enabled_services=$(config-get enabled-services)
+  [[ "$enabled_services" == "all" ]] && return 0
   local svc="$1"
-  local enabled=$(echo $ENABLED_SERVICES | sed -e 's/,/ /g')
+  local enabled=$(echo $enabled_services | sed -e 's/,/ /g')
   for s in $enabled ; do
    [[ "$svc" == "$s" ]] && return 0
   done
@@ -33,7 +32,9 @@ service_enabled() {
 determine_packages() {
   # determine packages to be installed based on what services are enabled.
   local pkgs="$COMMON_PACKAGES"
-  if [[ "$ENABLED_SERVICES" == "all" ]] ; then
+  local enabled_services=$(config-get enabled-services)
+
+  if [[ "$enabled_services" == "all" ]] ; then
     pkgs="$pkgs $API_PACKAGES $VOL_PACKAGES $SCHED_PACKAGES"
   else
     service_enabled "api" && pkgs="$pkgs $API_PACKAGES"
@@ -42,42 +43,6 @@ determine_packages() {
   fi
   echo "$pkgs"
 }
-
-
-setup_install_source() {
-  # configure appropriate apt installation source.
-  local rel="$1"
-  ( [[ "$rel" == "distro" ]] || [[ -z "$rel" ]] ) && return 0
-  . /etc/lsb-release
-
-  if [[ "${rel:0:4}" == "ppa:" ]] ; then
-    juju-log "cinder: Configuring installation from PPA: $rel."
-    add-apt-repository -y "$rel"
-    return $?
-  fi
-
-  if [[ "${rel:0:3}" == "deb" ]] ; then
-    juju-log "cinder: Configuration installtion from custom deb repo URL."
-
-    if echo "$rel" | grep -vq "|" ; then
-      juju-log "ERROR: Cannot setup installation from deb repo URL without "\
-               "an appended gpg key id, ie http://archive.com/ubuntu|GPGKEYID"
-      return 1
-    fi
-
-    url=$(echo $rel | cut -d'|' -f1)
-    key=$(echo $rel | cut -d'|' -f2)
-
-    [[ -z "$key" ]] &&
-      juju-log "cinder: No key specified in deb url." && return 1
-
-    juju-log "cinder: Importing repository key: $key"
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "$key" || \
-      juju-log "WARN: Could not import key from keyserver: $key"
-    add-apt-repository -y "$url"
-  fi
-}
-
 
 function set_or_update {
   # Set a config option in nova.conf or api-paste.ini, depending
@@ -114,16 +79,6 @@ function set_or_update {
   fi
 }
 
-cinder_ctl_status() {
-  local svc="$1"
-  local status=$(service $svc status | cut -d/ -f1 | awk '{ print $2 }')
-  case "$status" in
-    "start") return 0 ;;
-    "stop") return 1 ;;
-    *) error_out "ERROR: Unexpected status of $svc: $status" ;;
-  esac
-}
-
 cinder_ctl() {
   local svc="$1"
   local action="$2"
@@ -138,15 +93,14 @@ cinder_ctl() {
   for s in $svcs ; do
     case "$action" in
       "start")
-        cinder_ctl_status $s || service $s start ;;
+        service_ctl_status $s || service $s start ;;
       "stop")
-        cinder_ctl_status $s && service $s stop || return 0 ;;
+        service_ctl_status $s && service $s stop || return 0 ;;
       "restart")
-        cinder_ctl_status $s && service $s restart || service $s start ;;
+        service_ctl_status $s && service $s restart || service $s start ;;
     esac
   done
 }
-
 
 clean_storage() {
   # if configured to overwrite existing storage, we unmount the block-dev
