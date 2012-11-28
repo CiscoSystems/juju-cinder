@@ -164,29 +164,6 @@ volume_changed() {
   exit 0
 }
 
-haproxy_joined() {
-  port=$(config-get api-listening-port)
-  relation-set service_name="cinder-api" \
-               service_port="$port" \
-               port="$port" \
-               hostname="$(unit-get private-address)"
-
-  url="http://$(relation-get private-address):$port/v1/\$(tenant_id)s"
-  # Reconfigure keystone catalog's cinder entry to point to load balancer.
-  reconfigure_keystone_endpoint "cinder" "RegionOne" "$url" "$url" "$url"
-}
-
-haproxy_broken() {
-  port=$(config-get api-listening-port)
-  url="http://$(unit-get private-address):$port/v1/\$(tenant_id)s"
-  # Reconfigure keystone catalog's cinder entry to point to this host.
-  reconfigure_keystone_endpoint "cinder" "RegionOne" "$url" "$url" "$url"
-}
-
-haproxy_changed() {
-  exit 0
-}
-
 arg0=$(basename $0)
 juju-log "cinder: Attempting to fire hook for: $arg0"
 case $arg0 in
@@ -201,8 +178,5 @@ case $arg0 in
   "ceph-relation-changed") ceph_changed;;
   "cinder-volume-service-relation-joined") volume_joined ;;
   "cinder-volume-service-relation-changed") volume_changed ;;
-  "api-service-relation-changed") haproxy_changed ;;
-  "api-service-relation-joined") haproxy_joined ;;
-  "api-service-relation-broken") haproxy_broken ;;
   *) exit 0
 esac
