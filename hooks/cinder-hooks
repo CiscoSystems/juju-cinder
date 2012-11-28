@@ -155,15 +155,6 @@ EOF
   cinder_ctl "cinder-volume" restart
 }
 
-volume_joined() {
-  relation-set volume_service="cinder"
-}
-
-volume_changed() {
-  # nothing todo here yet.
-  exit 0
-}
-
 arg0=$(basename $0)
 juju-log "cinder: Attempting to fire hook for: $arg0"
 case $arg0 in
@@ -176,7 +167,7 @@ case $arg0 in
   "identity-service-relation-changed") keystone_changed ;;
   "ceph-relation-joined") ceph_joined;;
   "ceph-relation-changed") ceph_changed;;
-  "cinder-volume-service-relation-joined") volume_joined ;;
-  "cinder-volume-service-relation-changed") volume_changed ;;
+  "cinder-volume-service-relation-joined") exit 0 ;;
+  "cinder-volume-service-relation-changed") exit 0 ;;
   *) exit 0
 esac
