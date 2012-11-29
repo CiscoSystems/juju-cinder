@@ -1,5 +1,5 @@
 options:
-    cinder-release:
+    openstack-origin:
         default: distro
         type: string
         description: |
@@ -11,7 +11,7 @@ options:
           cloud:precise-folsom/updates, cloud:precise-folsom/staging,
           cloud:precise-folsom/proposed.
 
-          When deploying to Precise, the default distro option will use 
+          When deploying to Precise, the default distro option will use
           the cloud:precise-folsom/updates repository instead, since Cinder
           was not available in the Ubuntu archive for Precise and is only
           available via the Ubuntu Cloud Archive.
@@ -58,7 +58,3 @@ options:
         default: 8776
         type: int
         description: OpenStack Volume API listening port.
-    config-flags:
-        default: None
-        type: string
-        description: Comma separated list of key=value config flags to be set in cinder.conf
