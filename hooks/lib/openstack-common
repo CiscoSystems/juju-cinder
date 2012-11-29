@@ -78,7 +78,7 @@ function configure_install_source {
         juju-log "$CHARM No repository key specified"
         url="$src"
       fi
-      add-apt-repository -y "$url"
+      echo $url > /etc/apt/sources.list.d/juju_deb.list
     fi
     return 0
   fi
@@ -129,6 +129,7 @@ get_os_codename_install_source() {
       "oneiric") codename="diablo" ;;
       "precise") codename="essex" ;;
       "quantal") codename="folsom" ;;
+      "raring")  codename="grizzly" ;;
     esac
   fi
 
@@ -141,8 +142,20 @@ get_os_codename_install_source() {
       case "$ca_rel" in
         "folsom"|"folsom/updates"|"folsom/proposed"|"folsom/staging")
           codename="folsom" ;;
+        "grizzly"|"grizzly/updates"|"grizzly/proposed"|"grizzy/staging")
+          codename="grizly" ;;
       esac
     fi
+  fi
+
+  # have a guess based on the deb string provided
+  if [[ "${rel:0:3}" == "deb" ]]; then
+    CODENAMES="diablo essex folsom grizzly"
+    for cname in $CODENAMES; do
+      if echo $rel | grep -q $cname; then
+        codename=$cname
+      fi
+    done
   fi
   echo $codename
 }
@@ -164,22 +177,4 @@ get_os_version_codename() {
     "folsom") echo "2012.2" ;;
     "grizzly") echo "2012.3" ;;
   esac
-}
-
-reconfigure_keystone_endpoint() {
-  # Reconfigure the endpoint template for a given service on any existing
-  # relations to Keystone.
-  local svc="$1"
-  local region="$2"
-  local public_url="$3"
-  local internal_url="$4"
-  local admin_url="$5"
-  [[ $# -lt 5 ]] && error_out "reconfigure_keystone_endpoint(): Missing input."
-
-  juju-log "$CHARM: Reconfiguring Keystone endpoint for $svc: $url."
-  for id in $(relation-ids identity-service) ; do
-    relation-set -r $id service="$svc" \
-      region="$region" public_url="$public_url" admin_url="$admin_url" \
-      internal_url="$internal_url"
-  done
 }
