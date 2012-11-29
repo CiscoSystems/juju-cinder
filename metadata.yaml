@@ -6,8 +6,6 @@ description: |
 provides:
   cinder-volume-service:
     interface: cinder
-  api-service:
-    interface: http
 requires:
   shared-db:
     interface: mysql-shared

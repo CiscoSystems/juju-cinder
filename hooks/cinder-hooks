@@ -169,6 +169,8 @@ arg0=$(basename $0)
 juju-log "cinder: Attempting to fire hook for: $arg0"
 case $arg0 in
   "install") install_hook ;;
+  "start") cinder_ctl all start
+  "stop") cinder_ctl all stop
   "shared-db-relation-joined") db_joined ;;
   "shared-db-relation-changed") db_changed ;;
   "amqp-relation-joined") amqp_joined ;;
