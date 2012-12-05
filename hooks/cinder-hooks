@@ -153,6 +153,9 @@ EOF
   # XXX: Horrid kludge to make cinder-volume use
   # a different ceph username than admin
   echo "CEPH_ARGS=--id $SERVICE_NAME" >> /etc/environment
+  # Also add it to the overrides for cinder volume
+  # in preparation for move to start-stop-daemon.
+  echo "env CEPH_ARGS=\"--id $SERVICE_NAME\"" > /etc/init/cinder-volume.override
 
   # Create the cinder pool if it does not already exist
   if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
@@ -169,8 +172,8 @@ arg0=$(basename $0)
 juju-log "cinder: Attempting to fire hook for: $arg0"
 case $arg0 in
   "install") install_hook ;;
-  "start") cinder_ctl all start
-  "stop") cinder_ctl all stop
+  "start") cinder_ctl all start;;
+  "stop") cinder_ctl all stop;;
   "shared-db-relation-joined") db_joined ;;
   "shared-db-relation-changed") db_changed ;;
   "amqp-relation-joined") amqp_joined ;;
