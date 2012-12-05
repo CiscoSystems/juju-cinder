@@ -2,7 +2,7 @@
 
 CHARM="cinder"
 
-COMMON_PACKAGES="cinder-common python-mysqldb"
+COMMON_PACKAGES="cinder-common python-mysqldb gdisk"
 API_PACKAGES="cinder-api"
 VOL_PACKAGES="cinder-volume"
 SCHED_PACKAGES="cinder-scheduler"
@@ -124,6 +124,10 @@ clean_storage() {
     fi
     echo "yes" | pvremove -ff "$block_dev" ||
       error_out "Could not pvremove $block_dev"
+  else
+    juju-log "Zapping disk of all GPT and MBR structures"
+    sgdisk --zap-all $block_dev ||
+      error_out "Unable to zap $block_dev"
   fi
 }
 
