@@ -83,7 +83,12 @@ amqp_changed() {
 
 keystone_joined() {
   port=$(config-get api-listening-port)
-  url="http://$(unit-get private-address):$port/v1/\$(tenant_id)s"
+  if is_clustered && is_leader 'res_cinder_vip'; then
+    port=$(($port + 1))
+    url="http://$(config-get vip):$port/v1/\$(tenant_id)s"
+  elif ! is_clustered; then
+    url="http://$(unit-get private-address):$port/v1/\$(tenant_id)s"
+  fi
   relation-set service="cinder" \
     region="RegionOne" public_url="$url" admin_url="$url" internal_url="$url"
 }
@@ -100,12 +105,13 @@ keystone_changed() {
     [[ -z "$service_tenant" ]] && juju-log "keystone_changed: Peer not ready" &&
       exit 0
 
-  keystone_host=$(relation-get private-address)
+  service_host=$(relation-get service_host)
+  auth_host=$(relation-get auth_host)
 
   # update keystone authtoken settings accordingly
-  set_or_update "service_host" "$keystone_host" "$API_CONF"
+  set_or_update "service_host" "$service_host" "$API_CONF"
   set_or_update "service_port" "$service_port" "$API_CONF"
-  set_or_update "auth_host" "$keystone_host" "$API_CONF"
+  set_or_update "auth_host" "$auth_host" "$API_CONF"
   set_or_update "auth_port" "$auth_port" "$API_CONF"
   set_or_update "admin_tenant_name" "$service_tenant" "$API_CONF"
   set_or_update "admin_user" "$service_username" "$API_CONF"
@@ -168,6 +174,62 @@ EOF
   cinder_ctl "cinder-volume" restart
 }
 
+function cluster_changed() {
+  configure_haproxy "cinder_api:$(config-get api-listening-port)"
+}
+
+function upgrade_charm() {
+  cluster_changed
+}
+
+function ha_relation_joined() {
+  local corosync_bindiface=`config-get ha-bindiface`
+  local corosync_mcastport=`config-get ha-mcastport`
+  local vip=`config-get vip`
+  local vip_iface=`config-get vip_iface`
+  local vip_cidr=`config-get vip_cidr`
+  if [ -n "$vip" ] && [ -n "$vip_iface" ] && \
+     [ -n "$vip_cidr" ] && [ -n "$corosync_bindiface" ] && \
+     [ -n "$corosync_mcastport" ]; then
+    # TODO: This feels horrible but the data required by the hacluster
+    # charm is quite complex and is python ast parsed.
+    resources="{
+'res_cinder_vip':'ocf:heartbeat:IPaddr2',
+'res_cinder_haproxy':'lsb:haproxy'
+}"
+    resource_params="{
+'res_cinder_vip': 'params ip=\"$vip\" cidr_netmask=\"$vip_cidr\" nic=\"$vip_iface\"',
+'res_cinder_haproxy': 'op monitor interval=\"5s\"'
+}"
+    init_services="{
+'res_cinder_haproxy':'haproxy'
+}"
+    groups="{
+'grp_cinder_haproxy':'res_cinder_vip res_cinder_haproxy'
+}"
+    relation-set corosync_bindiface=$corosync_bindiface \
+      corosync_mcastport=$corosync_mcastport \
+      resources="$resources" resource_params="$resource_params" \
+      init_services="$init_services" groups="$groups"
+  else
+    juju-log "Insufficient configuration data to configure hacluster"
+    exit 1
+  fi   
+}
+
+function ha_relation_changed() {
+  local clustered=`relation-get clustered`
+  if [ -n "$clustered" ] && is_leader 'res_cinder_vip'; then
+    local port=$(config-get api-listening-port)
+    port=$(($port + 1))
+    local url="http://$(config-get vip):$port/v1/\$(tenant_id)s"
+    for r_id in `relation-ids identity-service`; do
+      relation-set -r $r_id \
+        public_url="$url" admin_url="$url" internal_url="$url"
+    done
+  fi
+}
+
 arg0=$(basename $0)
 juju-log "cinder: Attempting to fire hook for: $arg0"
 case $arg0 in
@@ -184,5 +246,10 @@ case $arg0 in
   "ceph-relation-changed") ceph_changed;;
   "cinder-volume-service-relation-joined") exit 0 ;;
   "cinder-volume-service-relation-changed") exit 0 ;;
+  "cluster-relation-changed") cluster_changed ;;
+  "cluster-relation-departed") cluster_changed ;;
+  "ha-relation-joined") ha_relation_joined ;;
+  "ha-relation-changed") ha_relation_changed ;;
+  "upgrade-charm") upgrade_charm ;;
   *) exit 0
 esac

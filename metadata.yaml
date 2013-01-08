@@ -15,3 +15,9 @@ requires:
     interface: keystone
   ceph:
     interface: ceph-client
+  ha:
+    interface: hacluster
+    scope: container
+peers:
+  cluster:
+    interface: cinder-ha

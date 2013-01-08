@@ -2,7 +2,7 @@
 
 CHARM="cinder"
 
-COMMON_PACKAGES="cinder-common python-mysqldb gdisk"
+COMMON_PACKAGES="cinder-common python-mysqldb gdisk haproxy"
 API_PACKAGES="cinder-api"
 VOL_PACKAGES="cinder-volume"
 SCHED_PACKAGES="cinder-scheduler"
