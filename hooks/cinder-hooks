@@ -71,6 +71,15 @@ amqp_changed() {
   rabbit_password=$(relation-get password)
   [[ -z "$rabbit_host" ]] || [[ -z "$rabbit_password" ]] &&
     juju-log "Missing rabbit_host||rabbit_passwd, peer not ready? Will retry." && exit 0
+  local clustered=$(relation-get clustered)
+  if [[ -n "$clustered" ]] ; then
+    juju-log "$CHARM - amqp_changed: Configuring for access to haclustered "\
+             "rabbitmq service."
+    local vip=$(relation-get vip)
+    [[ -z "$vip" ]] && juju-log "$CHARM - amqp_changed: Clustered bu no vip."\
+      && exit 0
+    rabbit_host="$vip"
+  fi
   juju-log "cinder: Configuring cinder for amqp access to $rabbit_host:$rabbit_vhost"
   rabbit_user=$(config-get rabbit-user)
   rabbit_vhost=$(config-get rabbit-vhost)
