@@ -99,7 +99,7 @@ keystone_joined() {
     url="http://$(unit-get private-address):$port/v1/\$(tenant_id)s"
   fi
   relation-set service="cinder" \
-    region="RegionOne" public_url="$url" admin_url="$url" internal_url="$url"
+    region="$(config-get region)" public_url="$url" admin_url="$url" internal_url="$url"
 }
 
 keystone_changed() {

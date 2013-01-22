@@ -58,6 +58,10 @@ options:
         default: 8776
         type: int
         description: OpenStack Volume API listening port.
+    region:
+        default: RegionOne
+        type: string
+        description: OpenStack Region
     # HA configuration settings
     vip:
         type: string
