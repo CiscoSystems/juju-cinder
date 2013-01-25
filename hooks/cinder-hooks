@@ -93,7 +93,7 @@ amqp_changed() {
 keystone_joined() {
   port=$(config-get api-listening-port)
   if is_clustered && is_leader 'res_cinder_vip'; then
-    port=$(($port + 1))
+    port=$(($port + 10000))
     url="http://$(config-get vip):$port/v1/\$(tenant_id)s"
   elif ! is_clustered; then
     url="http://$(unit-get private-address):$port/v1/\$(tenant_id)s"
@@ -230,7 +230,7 @@ function ha_relation_changed() {
   local clustered=`relation-get clustered`
   if [ -n "$clustered" ] && is_leader 'res_cinder_vip'; then
     local port=$(config-get api-listening-port)
-    port=$(($port + 1))
+    port=$(($port + 10000))
     local url="http://$(config-get vip):$port/v1/\$(tenant_id)s"
     for r_id in `relation-ids identity-service`; do
       relation-set -r $r_id \
