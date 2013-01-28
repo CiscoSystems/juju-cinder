@@ -91,6 +91,17 @@ amqp_changed() {
 }
 
 keystone_joined() {
+  if is_peered && ! is_clustered; then
+    # Unit is in peering state - don't do anything as it
+    # will probably cluster soon in which case keystone
+    # already knows about its VIP
+    return 0
+  fi
+  if is_clustered && ! is_leader 'res_cinder_vip'; then
+    # Clustered but not the current leader
+    # do nothing
+    return 0
+  fi
   port=$(config-get api-listening-port)
   if is_clustered && is_leader 'res_cinder_vip'; then
     port=$(($port + 10000))

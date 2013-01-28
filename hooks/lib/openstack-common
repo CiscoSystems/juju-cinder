@@ -395,11 +395,28 @@ is_clustered() {
     for unit in `relation-list -r $r_id`; do
        clustered=`relation-get -r $r_id clustered $unit`
        if [ -n "$clustered" ]; then
+         echo "Unit is clustered"
          return 0
        fi
     done
   done
+  echo "Unit is not clustered"
   return 1
+}
+
+##########################################################################
+# Description: Query Cluster peer interface to see if peered
+# Returns: 0 if peered, 1 if not peered
+##########################################################################
+is_peered() {
+  r_id=$(relation-ids cluster)
+  if [ -z "$(relation-list -r $r_id)" ]; then
+    echo "Unit not yet peered"
+    return 0 
+  else
+    echo "Unit peered"
+    return 1
+  fi
 }
 
 ##########################################################################
@@ -411,9 +428,11 @@ is_leader() {
   hostname=`hostname`
   if [ -x /usr/sbin/crm ]; then
     if crm resource show $1 | grep -q $hostname; then
+      echo "$hostname is cluster leader"
       return 0
     fi
   fi
+  echo "$hostname is not cluster leader"
   return 1
 }
 
