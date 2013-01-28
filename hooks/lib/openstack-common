@@ -412,10 +412,10 @@ is_peered() {
   r_id=$(relation-ids cluster)
   if [ -z "$(relation-list -r $r_id)" ]; then
     echo "Unit not yet peered"
-    return 0 
+    return 1
   else
     echo "Unit peered"
-    return 1
+    return 0
   fi
 }
 
