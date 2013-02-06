@@ -424,13 +424,16 @@ peer_units() {
 ##########################################################################
 oldest_peer() {
   peers=$1
-  local l_unit_no=$(echo $JUJU_UNIT_NAME | cut -d 1 -f 2)
+  local l_unit_no=$(echo $JUJU_UNIT_NAME | cut -d / -f 2)
   for peer in $peers; do
-    local r_unit_no=$(echo $peer | cut -d 1 -f 2)
+    echo "Comparing $JUJU_UNIT_NAME with peers: $peers"
+    local r_unit_no=$(echo $peer | cut -d / -f 2)
     if (($r_unit_no<$l_unit_no)); then
+        echo "Not oldest peer; deferring"
         return 1
     fi
   done
+  echo "Oldest peer; might take charge?"
   return 0
 }
 
