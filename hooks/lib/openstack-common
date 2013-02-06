@@ -412,7 +412,7 @@ is_clustered() {
 peer_units() {
   local peers=""
   for r_id in $(relation-ids cluster); do
-    peers="$peers $(relation_list -r $r_id)"
+    peers="$peers $(relation-list -r $r_id)"
   done
   echo $peers
 }
