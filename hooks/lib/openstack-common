@@ -449,7 +449,7 @@ eligible_leader() {
     fi
   else
     peers=$(peer_units)
-    if [ -n "$peers" ] && ! oldest_peer $peers; then
+    if [ -n "$peers" ] && ! oldest_peer "$peers"; then
       echo 'Deferring action to oldest service unit.'
       return 1
     fi
