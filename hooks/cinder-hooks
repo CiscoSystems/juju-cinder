@@ -231,7 +231,8 @@ function ha_relation_joined() {
 }
 
 function ha_relation_changed() {
-  if eligible_leader 'res_cinder_vip'; then
+  local clustered=`relation-get clustered`
+  if [ -n "$clustered" ] && is_leader 'res_cinder_vip'; then
     juju-log "Cluster leader, reconfiguring keystone endpoint"
     local port=$(config-get api-listening-port)
     port=$(($port + 10000))
