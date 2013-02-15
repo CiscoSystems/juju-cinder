@@ -11,11 +11,11 @@ fi
 install_hook() {
   install_source="$(config-get openstack-origin)"
 
-  # Check if we are deploying to Precise.  If so, we need to use
-  # the Cloud Archive instead of the Ubuntu Archive since Cinder
-  # does not exist there (for precise).
+  # Check if we are deploying to Precise from distro.
+  # If so, we need to use the Cloud Archive instead of the
+  # Ubuntu Archive since Cinder does not exist there (for precise).
   . /etc/lsb-release
-  [[ "$DISTRIB_CODENAME" == "precise" ]] &&
+  [[ "$DISTRIB_CODENAME" == "precise" && "$install_source" == "distro" ]] &&
     install_source="cloud:precise-folsom"
 
   configure_install_source "$install_source"
