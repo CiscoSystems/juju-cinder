@@ -44,7 +44,7 @@ db_joined() {
 }
 
 db_changed() {
-  db_host=$(relation-get private-address)
+  db_host=$(relation-get db_host)
   db_password=$(relation-get password)
 
   [[ -z "$db_host" ]] || [[ -z "$db_password" ]] &&
