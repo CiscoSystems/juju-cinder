@@ -102,7 +102,7 @@ keystone_joined() {
   is_clustered && local host=$(config-get vip) ||
     local host=$(unit-get private-address)
 
-  local url="$scheme://$host:8776/v1/\$(tenant_id)s"
+  local url="$scheme://$host:$(api-listening-port)/v1/\$(tenant_id)s"
   relation-set service="cinder" \
     region="$(config-get region)" public_url="$url" admin_url="$url" internal_url="$url"
 }
@@ -246,7 +246,7 @@ function ha_relation_changed() {
   if [ -n "$clustered" ] && is_leader 'res_cinder_vip'; then
     juju-log "Cluster leader, reconfiguring keystone endpoint"
     https && local scheme="https" || local scheme="http"
-    local url="$scheme://$(config-get vip):9292/v1"
+    local url="$scheme://$(config-get vip):$(config-get api-listening-port)/v1"
     local r_id=""
     for r_id in `relation-ids identity-service`; do
       relation-set -r $r_id service="cinder" \
