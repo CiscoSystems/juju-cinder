@@ -176,9 +176,12 @@ EOF
   # in preparation for move to start-stop-daemon.
   echo "env CEPH_ARGS=\"--id $SERVICE_NAME\"" > /etc/init/cinder-volume.override
 
-  # Create the cinder pool if it does not already exist
-  if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
-    rados --id $SERVICE_NAME mkpool cinder
+  # Only the leader should try to create pools
+  if eligible_leader 'res_cinder_vip'; then
+    # Create the cinder pool if it does not already exist
+    if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
+      rados --id $SERVICE_NAME mkpool cinder
+    fi
   fi
 
   # Reconfigure cinder-volume
