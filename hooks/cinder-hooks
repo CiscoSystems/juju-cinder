@@ -246,7 +246,7 @@ function ha_relation_changed() {
   if [ -n "$clustered" ] && is_leader 'res_cinder_vip'; then
     juju-log "Cluster leader, reconfiguring keystone endpoint"
     https && local scheme="https" || local scheme="http"
-    local url="$scheme://$(config-get vip):$(config-get api-listening-port)/v1"
+    local url="$scheme://$(config-get vip):$(config-get api-listening-port)/v1/\$(tenant_id)s"
     local r_id=""
     for r_id in `relation-ids identity-service`; do
       relation-set -r $r_id service="cinder" \
