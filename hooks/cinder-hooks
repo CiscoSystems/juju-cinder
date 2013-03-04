@@ -251,7 +251,7 @@ function ha_relation_changed() {
 function config_changed() {
   # Save our scriptrc env variables for health checks
   declare -a env_vars=(
-      "OPENSTACK_PORT_MCASTPORT=\"$(config-get ha-mcastport)\""
+      "OPENSTACK_PORT_MCASTPORT=$(config-get ha-mcastport)"
       'OPENSTACK_SERVICE_API=cinder-api'
       'OPENSTACK_SERVICE_SCHEDULER=cinder-scheduler'
       'OPENSTACK_SERVICE_VOLUME=cinder-volume')
