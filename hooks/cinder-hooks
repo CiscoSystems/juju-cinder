@@ -248,6 +248,16 @@ function ha_relation_changed() {
   fi
 }
 
+function config_changed() {
+  # Save our scriptrc env variables for health checks
+  declare -a env_vars=(
+      "OPENSTACK_PORT_MCASTPORT=$(config-get ha-mcastport)"
+      'OPENSTACK_SERVICE_API=cinder-api'
+      'OPENSTACK_SERVICE_SCHEDULER=cinder-scheduler'
+      'OPENSTACK_SERVICE_VOLUME=cinder-volume')
+  save_script_rc ${env_vars[@]}
+}
+
 arg0=$(basename $0)
 juju-log "cinder: Attempting to fire hook for: $arg0"
 case $arg0 in
@@ -269,5 +279,6 @@ case $arg0 in
   "ha-relation-joined") ha_relation_joined ;;
   "ha-relation-changed") ha_relation_changed ;;
   "upgrade-charm") upgrade_charm ;;
+  "config-changed") config_changed ;;
   *) exit 0
 esac
