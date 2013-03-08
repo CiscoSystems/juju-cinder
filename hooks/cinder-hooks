@@ -178,9 +178,12 @@ EOF
   # in preparation for move to start-stop-daemon.
   echo "env CEPH_ARGS=\"--id $SERVICE_NAME\"" > /etc/init/cinder-volume.override
 
-  # Create the cinder pool if it does not already exist
-  if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
-    rados --id $SERVICE_NAME mkpool cinder
+  # Only the leader should try to create pools
+  if eligible_leader 'res_cinder_vip'; then
+    # Create the cinder pool if it does not already exist
+    if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
+      rados --id $SERVICE_NAME mkpool cinder
+    fi
   fi
 
   # Reconfigure cinder-volume
@@ -258,6 +261,13 @@ function ha_relation_changed() {
 
 function config_changed() {
   configure_https
+  # Save our scriptrc env variables for health checks
+  declare -a env_vars=(
+      "OPENSTACK_PORT_MCASTPORT=$(config-get ha-mcastport)"
+      'OPENSTACK_SERVICE_API=cinder-api'
+      'OPENSTACK_SERVICE_SCHEDULER=cinder-scheduler'
+      'OPENSTACK_SERVICE_VOLUME=cinder-volume')
+  save_script_rc ${env_vars[@]}
 }
 
 arg0=$(basename $0)
