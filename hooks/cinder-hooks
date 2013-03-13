@@ -189,6 +189,10 @@ EOF
   # Reconfigure cinder-volume
   set_or_update volume_driver cinder.volume.driver.RBDDriver
   set_or_update rbd_pool cinder
+  # Set host to service name to ensure that requests get
+  # distributed across all cinder servers in a cluster
+  # as they can all service ceph requests.
+  set_or_update host "$SERVICE_NAME"
   cinder_ctl "cinder-volume" restart
 }
 
@@ -199,7 +203,7 @@ function cluster_changed() {
   local cfg_api_port="$(config-get api-listening-port)"
   local haproxy_port="$(determine_haproxy_port $cfg_api_port)"
   local backend_port="$(determine_api_port $cfg_api_port)"
-  service cinder-api stop
+  service cinder-api stop || :
   configure_haproxy "cinder_api:$haproxy_port:$backend_port"
   set_or_update osapi_volume_listen_port  "$backend_port"
   service cinder-api start
