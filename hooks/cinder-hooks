@@ -281,6 +281,7 @@ function image-service_changed {
     exit 0
   fi
   set_or_update glance_api_servers $GLANCE_API_SERVER
+  apt-get -y install qemu-utils
   cinder_ctl all restart
 }
 
