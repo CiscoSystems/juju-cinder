@@ -274,6 +274,16 @@ function config_changed() {
   save_script_rc ${env_vars[@]}
 }
 
+function image-service_changed {
+  GLANCE_API_SERVER=`relation-get glance-api-server`
+  if [[ -z $GLANCE_API_SERVER ]] ; then
+    echo "image-service_changed: GLANCE_API_SERVER not yet set. Exit 0 and retry"
+    exit 0
+  fi
+  set_or_update glance_api_servers $GLANCE_API_SERVER
+  cinder_ctl all restart
+}
+
 arg0=$(basename $0)
 juju-log "cinder: Attempting to fire hook for: $arg0"
 case $arg0 in
@@ -292,6 +302,7 @@ case $arg0 in
   "cinder-volume-service-relation-changed") exit 0 ;;
   "cluster-relation-changed") cluster_changed ;;
   "cluster-relation-departed") cluster_changed ;;
+  "image-service-relation-changed") image-service_changed ;;
   "ha-relation-joined") ha_relation_joined ;;
   "ha-relation-changed") ha_relation_changed ;;
   "upgrade-charm") upgrade_charm ;;
