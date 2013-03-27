@@ -173,7 +173,10 @@ EOF
 
   # XXX: Horrid kludge to make cinder-volume use
   # a different ceph username than admin
-  echo "CEPH_ARGS=--id $SERVICE_NAME" >> /etc/environment
+  if [ -z "`grep CEPH_ARGS /etc/environment`" ]; then
+     # Only insert environment var if we don't already have it
+     echo "CEPH_ARGS=\"--id $SERVICE_NAME\"" >> /etc/environment
+  fi
   # Also add it to the overrides for cinder volume
   # in preparation for move to start-stop-daemon.
   echo "env CEPH_ARGS=\"--id $SERVICE_NAME\"" > /etc/init/cinder-volume.override
