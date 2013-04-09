@@ -10,6 +10,8 @@ SCHED_PACKAGES="cinder-scheduler"
 CINDER_CONF="/etc/cinder/cinder.conf"
 API_CONF="/etc/cinder/api-paste.ini"
 
+CONFIG_CHANGED="False"
+
 if [[ -e $CHARM_DIR/lib/openstack-common ]] ; then
   . $CHARM_DIR/lib/openstack-common
 else
@@ -77,6 +79,7 @@ function set_or_update {
     juju-log "cinder: Setting new option $KEY=$VALUE in $CONF_FILE"
     echo "$out$VALUE" >>$CONF_FILE
   fi
+  CONFIG_CHANGED="True"
 }
 
 cinder_ctl() {
@@ -90,16 +93,8 @@ cinder_ctl() {
   else
     svcs=$svc
   fi
-  for s in $svcs ; do
-    case "$action" in
-      "start")
-        service_ctl_status $s || service $s start ;;
-      "stop")
-        service_ctl_status $s && service $s stop || return 0 ;;
-      "restart")
-        service_ctl_status $s && service $s restart || service $s start ;;
-    esac
-  done
+  SERVICES=$svcs
+  service_ctl all $action
 }
 
 clean_storage() {

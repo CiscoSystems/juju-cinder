@@ -56,11 +56,10 @@ db_changed() {
   cinder_db=$(config-get cinder-db)
   juju-log "cinder: Configuring cinder for database access to $cinder_db@$db_host"
   set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$cinder_db"
-  cinder_ctl all stop
   if eligible_leader 'res_cinder_vip'; then
       /usr/bin/cinder-manage db sync
   fi
-  cinder_ctl all start
+  cinder_ctl all restart
 }
 
 amqp_joined() {
