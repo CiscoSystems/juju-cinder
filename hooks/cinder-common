@@ -12,10 +12,12 @@ API_CONF="/etc/cinder/api-paste.ini"
 
 CONFIG_CHANGED="False"
 
-if [[ -e $CHARM_DIR/lib/openstack-common ]] ; then
-  . $CHARM_DIR/lib/openstack-common
+HOOKS_DIR="$CHARM_DIR/hooks"
+
+if [[ -e $HOOKS_DIR/lib/openstack-common ]] ; then
+  . $HOOKS_DIR/lib/openstack-common
 else
-  juju-log "Couldn't load $CHARM_DIR/openstack-common" && exit 1
+  juju-log "Couldn't load $HOOKS_DIR/openstack-common" && exit 1
 fi
 
 service_enabled() {

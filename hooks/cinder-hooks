@@ -1,10 +1,10 @@
 #!/bin/bash -e
 
-CHARM_DIR=$(dirname $0)
-if [[ -e $CHARM_DIR/cinder-common ]] ; then
-  . $CHARM_DIR/cinder-common
+HOOKS_DIR="$CHARM_DIR/hooks"
+if [[ -e $HOOKS_DIR/cinder-common ]] ; then
+  . $HOOKS_DIR/cinder-common
 else
-  juju-log "ERROR: Could not source cinder-common from $CHARM_DIR."
+  juju-log "ERROR: Could not source cinder-common from $HOOKS_DIR."
   exit 1
 fi
 
