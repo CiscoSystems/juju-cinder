@@ -255,7 +255,7 @@ configure_https() {
 
   local r_id=""
   # (re)configure ks endpoint accordingly in ks and nova.
-  for r_id in "$(relation-ids identity-service)" ; do
+  for r_id in $(relation-ids identity-service) ; do
     keystone_joined "$r_id"
   done
 }

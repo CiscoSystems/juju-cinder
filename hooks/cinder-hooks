@@ -102,7 +102,11 @@ keystone_joined() {
     local host=$(unit-get private-address)
 
   local url="$scheme://$host:$(config-get api-listening-port)/v1/\$(tenant_id)s"
-  relation-set service="cinder" \
+  r_id=""
+  if [[ -n "$1" ]] ; then
+    r_id="-r $1"
+  fi
+  relation-set $r_id service="cinder" \
     region="$(config-get region)" public_url="$url" admin_url="$url" internal_url="$url"
 }
 
