@@ -292,7 +292,7 @@ do_openstack_upgrade() {
     done
   done
   # ceph
-  for r_id in $(relation-ids ceph-client); do
+  for r_id in $(relation-ids ceph); do
     for unit in $(relation-list -r $r_id) ; do
       juju-log "$CHARM: Configuring ceph client after upgarde."
       ceph_changed $r_id $unit
