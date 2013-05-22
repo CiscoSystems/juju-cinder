@@ -293,6 +293,8 @@ do_openstack_upgrade() {
   done
   # ceph
   for r_id in $(relation-ids ceph); do
+    # ensure librbd gets updated with openstack
+    apt-get -y install librbd1
     for unit in $(relation-list -r $r_id) ; do
       juju-log "$CHARM: Configuring ceph client after upgarde."
       ceph_changed $r_id $unit

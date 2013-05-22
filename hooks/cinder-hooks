@@ -183,7 +183,7 @@ function ceph_changed {
   done
   cat > /etc/ceph/ceph.conf << EOF
 [global]
- auth supported = $(relation-get auth)
+ auth supported = $(relation-get $r_id auth $unit_id)
  keyring = /etc/ceph/\$cluster.\$name.keyring
  mon host = $mon_hosts
 EOF
