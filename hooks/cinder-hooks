@@ -45,8 +45,12 @@ db_joined() {
 }
 
 db_changed() {
-  db_host=$(relation-get db_host)
-  db_password=$(relation-get password)
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
+  db_host=$(relation-get $r_arg db_host $unit_id)
+  db_password=$(relation-get $r_arg password $unit_id)
 
   [[ -z "$db_host" ]] || [[ -z "$db_password" ]] &&
     juju-log "Missing DB_HOST|DB_PASSWORD, peer not ready? Will retry." &&
@@ -69,15 +73,19 @@ amqp_joined() {
 }
 
 amqp_changed() {
-  rabbit_host=$(relation-get private-address)
-  rabbit_password=$(relation-get password)
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
+  rabbit_host=$(relation-get $r_arg private-address $unit_id)
+  rabbit_password=$(relation-get $r_arg password $unit_id)
   [[ -z "$rabbit_host" ]] || [[ -z "$rabbit_password" ]] &&
     juju-log "Missing rabbit_host||rabbit_passwd, peer not ready? Will retry." && exit 0
-  local clustered=$(relation-get clustered)
+  local clustered=$(relation-get $r_arg clustered $unit_id)
   if [[ -n "$clustered" ]] ; then
     juju-log "$CHARM - amqp_changed: Configuring for access to haclustered "\
              "rabbitmq service."
-    local vip=$(relation-get vip)
+    local vip=$(relation-get $r_arg vip $unit_id)
     [[ -z "$vip" ]] && juju-log "$CHARM - amqp_changed: Clustered bu no vip."\
       && exit 0
     rabbit_host="$vip"
@@ -111,20 +119,22 @@ keystone_joined() {
 }
 
 keystone_changed() {
-  service_port=$(relation-get service_port)
-  auth_port=$(relation-get auth_port)
-  service_username=$(relation-get service_username)
-  service_password=$(relation-get service_password)
-  service_tenant=$(relation-get service_tenant)
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
+  service_port=$(relation-get $r_arg service_port $unit_id)
+  auth_port=$(relation-get $r_arg auth_port $unit_id)
+  service_username=$(relation-get $r_arg service_username $unit_id)
+  service_password=$(relation-get $r_arg service_password $unit_id)
+  service_tenant=$(relation-get $r_arg service_tenant $unit_id)
+  service_host=$(relation-get $r_arg service_host $unit_id)
+  auth_host=$(relation-get $r_arg auth_host $unit_id)
 
   [[ -z "$service_port" ]] || [[ -z "$auth_port" ]] ||
     [[ -z "$service_username" ]] || [[ -z "$service_password" ]] ||
     [[ -z "$service_tenant" ]] && juju-log "keystone_changed: Peer not ready" &&
       exit 0
-
-  service_host=$(relation-get service_host)
-  auth_host=$(relation-get auth_host)
-
   # update keystone authtoken settings accordingly
   set_or_update "service_host" "$service_host" "$API_CONF"
   set_or_update "service_port" "$service_port" "$API_CONF"
@@ -146,9 +156,13 @@ function ceph_joined {
 }
 
 function ceph_changed {
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
   SERVICE_NAME=`echo $JUJU_UNIT_NAME | cut -d / -f 1`
   KEYRING=/etc/ceph/ceph.client.$SERVICE_NAME.keyring
-  KEY=`relation-get key`
+  KEY=`relation-get $r_arg key $unit_id`
   if [ -n "$KEY" ]; then
     # But only once
     if [ ! -f $KEYRING ]; then
@@ -162,10 +176,10 @@ function ceph_changed {
     exit 0
   fi
 
-  MONS=`relation-list`
+  MONS=`relation-list $r_arg`
   mon_hosts=""
   for mon in $MONS; do
-    mon_hosts="$mon_hosts $(get_ip $(relation-get private-address $mon)):6789"
+    mon_hosts="$mon_hosts $(get_ip $(relation-get $r_arg private-address $mon)):6789"
   done
   cat > /etc/ceph/ceph.conf << EOF
 [global]
@@ -270,6 +284,17 @@ function ha_relation_changed() {
 }
 
 function config_changed() {
+  # possibly upgrade if openstack-origin has been bumped
+  local install_src=$(config-get openstack-origin)
+  local cur=$(get_os_codename_package "cinder-common")
+  local available=$(get_os_codename_install_source "$install_src")
+  if dpkg --compare-versions $(get_os_version_codename "$cur") lt \
+                             $(get_os_version_codename "$available") ; then
+    juju-log "$CHARM: Upgrading OpenStack release: $cur -> $available."
+    # need to explicitly upgrade ksc b/c (LP: 1182689)
+    do_openstack_upgrade "$install_src" $(determine_packages) python-keystoneclient
+  fi
+
   configure_https
   # Save our scriptrc env variables for health checks
   declare -a env_vars=(
