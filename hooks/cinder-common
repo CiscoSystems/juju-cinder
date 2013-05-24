@@ -293,7 +293,7 @@ do_openstack_upgrade() {
   done
   # ceph
   local ceph_ids="$(relation-ids ceph)"
-  [[ -n "$ceph_ids"] && apt-get -y install librbd1
+  [[ -n "$ceph_ids" ]] && apt-get -y install ceph-common
   for r_id in $ceph_ids ; do
     # ensure librbd gets updated with openstack
     for unit in $(relation-list -r $r_id) ; do
