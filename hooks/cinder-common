@@ -259,3 +259,46 @@ configure_https() {
     keystone_joined "$r_id"
   done
 }
+
+do_openstack_upgrade() {
+  local rel="$1"
+  shift
+  local packages=$@
+  configure_install_source "$rel"
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get \
+     --option Dpkg::Options::=--force-confnew -y \
+     install --no-install-recommends $packages
+  # update new configs for all possible relations
+  # mysql
+  for r_id in $(relation-ids shared-db); do
+    for unit in $(relation-list -r $r_id) ; do
+      juju-log "$CHARM: Configuring database after upgrade."
+      db_changed $r_id $unit
+    done
+  done
+  # rabbitmq-server
+  for r_id in $(relation-ids amqp); do
+    for unit in $(relation-list -r $r_id) ; do
+      juju-log "$CHARM: Configuring amqp after upgrade."
+      amqp_changed $r_id $unit
+    done
+  done
+  # keystone
+  for r_id in $(relation-ids identity-service); do
+    for unit in $(relation-list -r $r_id) ; do
+      juju-log "$CHARM: Configuring identity service after upgrade."
+      keystone_changed $r_id $unit
+    done
+  done
+  # ceph
+  local ceph_ids="$(relation-ids ceph)"
+  [[ -n "$ceph_ids" ]] && apt-get -y install ceph-common python-ceph
+  for r_id in $ceph_ids ; do
+    # ensure librbd gets updated with openstack
+    for unit in $(relation-list -r $r_id) ; do
+      juju-log "$CHARM: Configuring ceph client after upgarde."
+      ceph_changed $r_id $unit
+    done
+  done
+}
