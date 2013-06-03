@@ -1,21 +1,21 @@
 #!/bin/bash -e
 
-CHARM_DIR=$(dirname $0)
-if [[ -e $CHARM_DIR/cinder-common ]] ; then
-  . $CHARM_DIR/cinder-common
+HOOKS_DIR="$CHARM_DIR/hooks"
+if [[ -e $HOOKS_DIR/cinder-common ]] ; then
+  . $HOOKS_DIR/cinder-common
 else
-  juju-log "ERROR: Could not source cinder-common from $CHARM_DIR."
+  juju-log "ERROR: Could not source cinder-common from $HOOKS_DIR."
   exit 1
 fi
 
 install_hook() {
   install_source="$(config-get openstack-origin)"
 
-  # Check if we are deploying to Precise.  If so, we need to use
-  # the Cloud Archive instead of the Ubuntu Archive since Cinder
-  # does not exist there (for precise).
+  # Check if we are deploying to Precise from distro.
+  # If so, we need to use the Cloud Archive instead of the
+  # Ubuntu Archive since Cinder does not exist there (for precise).
   . /etc/lsb-release
-  [[ "$DISTRIB_CODENAME" == "precise" ]] &&
+  [[ "$DISTRIB_CODENAME" == "precise" && "$install_source" == "distro" ]] &&
     install_source="cloud:precise-folsom"
 
   configure_install_source "$install_source"
@@ -35,6 +35,7 @@ install_hook() {
       cinder_ctl cinder-volume restart
     fi
   fi
+  configure_https
 }
 
 db_joined() {
@@ -44,8 +45,12 @@ db_joined() {
 }
 
 db_changed() {
-  db_host=$(relation-get private-address)
-  db_password=$(relation-get password)
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
+  db_host=$(relation-get $r_arg db_host $unit_id)
+  db_password=$(relation-get $r_arg password $unit_id)
 
   [[ -z "$db_host" ]] || [[ -z "$db_password" ]] &&
     juju-log "Missing DB_HOST|DB_PASSWORD, peer not ready? Will retry." &&
@@ -55,9 +60,10 @@ db_changed() {
   cinder_db=$(config-get cinder-db)
   juju-log "cinder: Configuring cinder for database access to $cinder_db@$db_host"
   set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$cinder_db"
-  cinder_ctl all stop
-  /usr/bin/cinder-manage db sync
-  cinder_ctl all start
+  if eligible_leader 'res_cinder_vip'; then
+      /usr/bin/cinder-manage db sync
+  fi
+  cinder_ctl all restart
 }
 
 amqp_joined() {
@@ -67,10 +73,23 @@ amqp_joined() {
 }
 
 amqp_changed() {
-  rabbit_host=$(relation-get private-address)
-  rabbit_password=$(relation-get password)
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
+  rabbit_host=$(relation-get $r_arg private-address $unit_id)
+  rabbit_password=$(relation-get $r_arg password $unit_id)
   [[ -z "$rabbit_host" ]] || [[ -z "$rabbit_password" ]] &&
     juju-log "Missing rabbit_host||rabbit_passwd, peer not ready? Will retry." && exit 0
+  local clustered=$(relation-get $r_arg clustered $unit_id)
+  if [[ -n "$clustered" ]] ; then
+    juju-log "$CHARM - amqp_changed: Configuring for access to haclustered "\
+             "rabbitmq service."
+    local vip=$(relation-get $r_arg vip $unit_id)
+    [[ -z "$vip" ]] && juju-log "$CHARM - amqp_changed: Clustered bu no vip."\
+      && exit 0
+    rabbit_host="$vip"
+  fi
   juju-log "cinder: Configuring cinder for amqp access to $rabbit_host:$rabbit_vhost"
   rabbit_user=$(config-get rabbit-user)
   rabbit_vhost=$(config-get rabbit-vhost)
@@ -82,30 +101,44 @@ amqp_changed() {
 }
 
 keystone_joined() {
-  port=$(config-get api-listening-port)
-  url="http://$(unit-get private-address):$port/v1/\$(tenant_id)s"
-  relation-set service="cinder" \
-    region="RegionOne" public_url="$url" admin_url="$url" internal_url="$url"
+  # Exit hook execution if unit is not leader of cluster/service
+  eligible_leader 'res_cinder_vip' || return 0
+
+  # determine correct endpoint URL
+  https && scheme="https" || scheme="http"
+  is_clustered && local host=$(config-get vip) ||
+    local host=$(unit-get private-address)
+
+  local url="$scheme://$host:$(config-get api-listening-port)/v1/\$(tenant_id)s"
+  r_id=""
+  if [[ -n "$1" ]] ; then
+    r_id="-r $1"
+  fi
+  relation-set $r_id service="cinder" \
+    region="$(config-get region)" public_url="$url" admin_url="$url" internal_url="$url"
 }
 
 keystone_changed() {
-  service_port=$(relation-get service_port)
-  auth_port=$(relation-get auth_port)
-  service_username=$(relation-get service_username)
-  service_password=$(relation-get service_password)
-  service_tenant=$(relation-get service_tenant)
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
+  service_port=$(relation-get $r_arg service_port $unit_id)
+  auth_port=$(relation-get $r_arg auth_port $unit_id)
+  service_username=$(relation-get $r_arg service_username $unit_id)
+  service_password=$(relation-get $r_arg service_password $unit_id)
+  service_tenant=$(relation-get $r_arg service_tenant $unit_id)
+  service_host=$(relation-get $r_arg service_host $unit_id)
+  auth_host=$(relation-get $r_arg auth_host $unit_id)
 
   [[ -z "$service_port" ]] || [[ -z "$auth_port" ]] ||
     [[ -z "$service_username" ]] || [[ -z "$service_password" ]] ||
     [[ -z "$service_tenant" ]] && juju-log "keystone_changed: Peer not ready" &&
       exit 0
-
-  keystone_host=$(relation-get private-address)
-
   # update keystone authtoken settings accordingly
-  set_or_update "service_host" "$keystone_host" "$API_CONF"
+  set_or_update "service_host" "$service_host" "$API_CONF"
   set_or_update "service_port" "$service_port" "$API_CONF"
-  set_or_update "auth_host" "$keystone_host" "$API_CONF"
+  set_or_update "auth_host" "$auth_host" "$API_CONF"
   set_or_update "auth_port" "$auth_port" "$API_CONF"
   set_or_update "admin_tenant_name" "$service_tenant" "$API_CONF"
   set_or_update "admin_user" "$service_username" "$API_CONF"
@@ -114,6 +147,7 @@ keystone_changed() {
   set_or_update "auth_strategy" "keystone" "$CINDER_CONF"
 
   cinder_ctl all restart
+  configure_https
 }
 
 function ceph_joined {
@@ -122,9 +156,13 @@ function ceph_joined {
 }
 
 function ceph_changed {
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
   SERVICE_NAME=`echo $JUJU_UNIT_NAME | cut -d / -f 1`
   KEYRING=/etc/ceph/ceph.client.$SERVICE_NAME.keyring
-  KEY=`relation-get key`
+  KEY=`relation-get $r_arg key $unit_id`
   if [ -n "$KEY" ]; then
     # But only once
     if [ ! -f $KEYRING ]; then
@@ -138,34 +176,144 @@ function ceph_changed {
     exit 0
   fi
 
-  MONS=`relation-list`
+  MONS=`relation-list $r_arg`
   mon_hosts=""
   for mon in $MONS; do
-    mon_hosts="$mon_hosts $(get_ip $(relation-get private-address $mon)):6789"
+    mon_hosts="$mon_hosts $(get_ip $(relation-get $r_arg private-address $mon)):6789"
   done
   cat > /etc/ceph/ceph.conf << EOF
 [global]
- auth supported = $(relation-get auth)
+ auth supported = $(relation-get $r_id auth $unit_id)
  keyring = /etc/ceph/\$cluster.\$name.keyring
  mon host = $mon_hosts
 EOF
 
   # XXX: Horrid kludge to make cinder-volume use
   # a different ceph username than admin
-  echo "CEPH_ARGS=--id $SERVICE_NAME" >> /etc/environment
+  if [ -z "`grep CEPH_ARGS /etc/environment`" ]; then
+     # Only insert environment var if we don't already have it
+     echo "CEPH_ARGS=\"--id $SERVICE_NAME\"" >> /etc/environment
+  fi
   # Also add it to the overrides for cinder volume
   # in preparation for move to start-stop-daemon.
   echo "env CEPH_ARGS=\"--id $SERVICE_NAME\"" > /etc/init/cinder-volume.override
 
-  # Create the cinder pool if it does not already exist
-  if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
-    rados --id $SERVICE_NAME mkpool cinder
+  # Only the leader should try to create pools
+  if eligible_leader 'res_cinder_vip'; then
+    # Create the cinder pool if it does not already exist
+    if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
+      rados --id $SERVICE_NAME mkpool cinder
+    fi
   fi
 
   # Reconfigure cinder-volume
   set_or_update volume_driver cinder.volume.driver.RBDDriver
   set_or_update rbd_pool cinder
+  # Set host to service name to ensure that requests get
+  # distributed across all cinder servers in a cluster
+  # as they can all service ceph requests.
+  set_or_update host "$SERVICE_NAME"
   cinder_ctl "cinder-volume" restart
+}
+
+function cluster_changed() {
+  service_enabled "api" || return 0
+  [[ -z "$(peer_units)" ]] &&
+    juju-log "cluster_changed() with no peers." && exit 0
+  local cfg_api_port="$(config-get api-listening-port)"
+  local haproxy_port="$(determine_haproxy_port $cfg_api_port)"
+  local backend_port="$(determine_api_port $cfg_api_port)"
+  service cinder-api stop || :
+  configure_haproxy "cinder_api:$haproxy_port:$backend_port"
+  set_or_update osapi_volume_listen_port  "$backend_port"
+  service cinder-api start
+}
+
+function upgrade_charm() {
+  cluster_changed
+}
+
+function ha_relation_joined() {
+  local corosync_bindiface=`config-get ha-bindiface`
+  local corosync_mcastport=`config-get ha-mcastport`
+  local vip=`config-get vip`
+  local vip_iface=`config-get vip_iface`
+  local vip_cidr=`config-get vip_cidr`
+  if [ -n "$vip" ] && [ -n "$vip_iface" ] && \
+     [ -n "$vip_cidr" ] && [ -n "$corosync_bindiface" ] && \
+     [ -n "$corosync_mcastport" ]; then
+    # TODO: This feels horrible but the data required by the hacluster
+    # charm is quite complex and is python ast parsed.
+    resources="{
+'res_cinder_vip':'ocf:heartbeat:IPaddr2',
+'res_cinder_haproxy':'lsb:haproxy'
+}"
+    resource_params="{
+'res_cinder_vip': 'params ip=\"$vip\" cidr_netmask=\"$vip_cidr\" nic=\"$vip_iface\"',
+'res_cinder_haproxy': 'op monitor interval=\"5s\"'
+}"
+    init_services="{
+'res_cinder_haproxy':'haproxy'
+}"
+    clones="{
+'cl_cinder_haproxy': 'res_cinder_haproxy'
+}"
+    relation-set corosync_bindiface=$corosync_bindiface \
+      corosync_mcastport=$corosync_mcastport \
+      resources="$resources" resource_params="$resource_params" \
+      init_services="$init_services" clones="$clones"
+  else
+    juju-log "Insufficient configuration data to configure hacluster"
+    exit 1
+  fi
+}
+
+function ha_relation_changed() {
+  local clustered=`relation-get clustered`
+  if [ -n "$clustered" ] && is_leader 'res_cinder_vip'; then
+    juju-log "Cluster leader, reconfiguring keystone endpoint"
+    https && local scheme="https" || local scheme="http"
+    local url="$scheme://$(config-get vip):$(config-get api-listening-port)/v1/\$(tenant_id)s"
+    local r_id=""
+    for r_id in `relation-ids identity-service`; do
+      relation-set -r $r_id service="cinder" \
+        region="$(config-get region)" \
+        public_url="$url" admin_url="$url" internal_url="$url"
+    done
+  fi
+}
+
+function config_changed() {
+  # possibly upgrade if openstack-origin has been bumped
+  local install_src=$(config-get openstack-origin)
+  local cur=$(get_os_codename_package "cinder-common")
+  local available=$(get_os_codename_install_source "$install_src")
+  if dpkg --compare-versions $(get_os_version_codename "$cur") lt \
+                             $(get_os_version_codename "$available") ; then
+    juju-log "$CHARM: Upgrading OpenStack release: $cur -> $available."
+    # need to explicitly upgrade ksc b/c (LP: 1182689)
+    do_openstack_upgrade "$install_src" $(determine_packages) python-keystoneclient
+  fi
+
+  configure_https
+  # Save our scriptrc env variables for health checks
+  declare -a env_vars=(
+      "OPENSTACK_PORT_MCASTPORT=$(config-get ha-mcastport)"
+      'OPENSTACK_SERVICE_API=cinder-api'
+      'OPENSTACK_SERVICE_SCHEDULER=cinder-scheduler'
+      'OPENSTACK_SERVICE_VOLUME=cinder-volume')
+  save_script_rc ${env_vars[@]}
+}
+
+function image-service_changed {
+  GLANCE_API_SERVER=`relation-get glance-api-server`
+  if [[ -z $GLANCE_API_SERVER ]] ; then
+    echo "image-service_changed: GLANCE_API_SERVER not yet set. Exit 0 and retry"
+    exit 0
+  fi
+  set_or_update glance_api_servers $GLANCE_API_SERVER
+  apt-get -y install qemu-utils
+  cinder_ctl all restart
 }
 
 arg0=$(basename $0)
@@ -184,5 +332,12 @@ case $arg0 in
   "ceph-relation-changed") ceph_changed;;
   "cinder-volume-service-relation-joined") exit 0 ;;
   "cinder-volume-service-relation-changed") exit 0 ;;
+  "cluster-relation-changed") cluster_changed ;;
+  "cluster-relation-departed") cluster_changed ;;
+  "image-service-relation-changed") image-service_changed ;;
+  "ha-relation-joined") ha_relation_joined ;;
+  "ha-relation-changed") ha_relation_changed ;;
+  "upgrade-charm") upgrade_charm ;;
+  "config-changed") config_changed ;;
   *) exit 0
 esac

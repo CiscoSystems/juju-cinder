@@ -2,7 +2,7 @@
 
 CHARM="cinder"
 
-COMMON_PACKAGES="cinder-common python-mysqldb gdisk"
+COMMON_PACKAGES="cinder-common python-mysqldb gdisk haproxy"
 API_PACKAGES="cinder-api"
 VOL_PACKAGES="cinder-volume"
 SCHED_PACKAGES="cinder-scheduler"
@@ -10,10 +10,14 @@ SCHED_PACKAGES="cinder-scheduler"
 CINDER_CONF="/etc/cinder/cinder.conf"
 API_CONF="/etc/cinder/api-paste.ini"
 
-if [[ -e $CHARM_DIR/lib/openstack-common ]] ; then
-  . $CHARM_DIR/lib/openstack-common
+CONFIG_CHANGED="False"
+
+HOOKS_DIR="$CHARM_DIR/hooks"
+
+if [[ -e $HOOKS_DIR/lib/openstack-common ]] ; then
+  . $HOOKS_DIR/lib/openstack-common
 else
-  juju-log "Couldn't load $CHARM_DIR/openstack-common" && exit 1
+  juju-log "Couldn't load $HOOKS_DIR/openstack-common" && exit 1
 fi
 
 service_enabled() {
@@ -77,6 +81,7 @@ function set_or_update {
     juju-log "cinder: Setting new option $KEY=$VALUE in $CONF_FILE"
     echo "$out$VALUE" >>$CONF_FILE
   fi
+  CONFIG_CHANGED="True"
 }
 
 cinder_ctl() {
@@ -90,16 +95,8 @@ cinder_ctl() {
   else
     svcs=$svc
   fi
-  for s in $svcs ; do
-    case "$action" in
-      "start")
-        service_ctl_status $s || service $s start ;;
-      "stop")
-        service_ctl_status $s && service $s stop || return 0 ;;
-      "restart")
-        service_ctl_status $s && service $s restart || service $s start ;;
-    esac
-  done
+  SERVICES=$svcs
+  service_ctl all $action
 }
 
 clean_storage() {
@@ -227,4 +224,81 @@ prepare_storage() {
   vgcreate "$vol_group" "$device" ||
     error_out "Could not create volume group: $vol_group"
   return 0
+}
+
+configure_https() {
+  # request openstack-common setup reverse proxy mapping for API and registry
+  # servers
+  service_enabled "api" || return 0
+  local cfg_api_port=$(config-get api-listening-port)
+  service_ctl cinder-api stop
+  if [[ -n "$(peer_units)" ]] || is_clustered ; then
+    # haproxy may already be configured. need to push it back in the request
+    # pipeline in preparation for a change from:
+    #  from:  haproxy (8776) -> cinder-api (8766)
+    #  to:    ssl (8776) -> haproxy (8766) -> cinder-api (8756)
+    local next_server=$(determine_haproxy_port $cfg_api_port)
+    local api_port=$(determine_api_port $cfg_api_port)
+    configure_haproxy "cinder_api:$next_server:$api_port"
+  else
+    # if not clustered, the cinder-api is next in the pipeline.
+    local api_port=$(determine_api_port $cfg_api_port)
+    local next_server=$api_port
+  fi
+
+  # setup https to point to either haproxy or directly to api server, depending.
+  setup_https $cfg_api_port:$next_server
+
+  # configure servers to listen on new ports accordingly.
+  set_or_update osapi_volume_listen_port "$api_port"
+  service_ctl cinder-api start
+
+  local r_id=""
+  # (re)configure ks endpoint accordingly in ks and nova.
+  for r_id in $(relation-ids identity-service) ; do
+    keystone_joined "$r_id"
+  done
+}
+
+do_openstack_upgrade() {
+  local rel="$1"
+  shift
+  local packages=$@
+  configure_install_source "$rel"
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get \
+     --option Dpkg::Options::=--force-confnew -y \
+     install --no-install-recommends $packages
+  # update new configs for all possible relations
+  # mysql
+  for r_id in $(relation-ids shared-db); do
+    for unit in $(relation-list -r $r_id) ; do
+      juju-log "$CHARM: Configuring database after upgrade."
+      db_changed $r_id $unit
+    done
+  done
+  # rabbitmq-server
+  for r_id in $(relation-ids amqp); do
+    for unit in $(relation-list -r $r_id) ; do
+      juju-log "$CHARM: Configuring amqp after upgrade."
+      amqp_changed $r_id $unit
+    done
+  done
+  # keystone
+  for r_id in $(relation-ids identity-service); do
+    for unit in $(relation-list -r $r_id) ; do
+      juju-log "$CHARM: Configuring identity service after upgrade."
+      keystone_changed $r_id $unit
+    done
+  done
+  # ceph
+  local ceph_ids="$(relation-ids ceph)"
+  [[ -n "$ceph_ids" ]] && apt-get -y install ceph-common python-ceph
+  for r_id in $ceph_ids ; do
+    # ensure librbd gets updated with openstack
+    for unit in $(relation-list -r $r_id) ; do
+      juju-log "$CHARM: Configuring ceph client after upgarde."
+      ceph_changed $r_id $unit
+    done
+  done
 }

@@ -15,3 +15,11 @@ requires:
     interface: keystone
   ceph:
     interface: ceph-client
+  image-service:
+    interface: glance
+  ha:
+    interface: hacluster
+    scope: container
+peers:
+  cluster:
+    interface: cinder-ha
