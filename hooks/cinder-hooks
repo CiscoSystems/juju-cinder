@@ -202,7 +202,10 @@ EOF
   if eligible_leader 'res_cinder_vip'; then
     # Create the cinder pool if it does not already exist
     if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
-      rados --id $SERVICE_NAME mkpool cinder
+      # TODO: make the pool settings configurable
+      ceph --id $SERVICE_NAME osd pool create cinder 1024 1024
+      ceph --id $SERVICE_NAME osd pool set cinder size 3
+      # TODO: set appropriate crush ruleset
     fi
   fi
 
