@@ -201,10 +201,14 @@ EOF
   # Only the leader should try to create pools
   if eligible_leader 'res_cinder_vip'; then
     # Create the cinder pool if it does not already exist
-    if ! rados --id $SERVICE_NAME lspools | grep -q cinder; then
-      # TODO: make the pool settings configurable
-      ceph --id $SERVICE_NAME osd pool create cinder 1024 1024
-      ceph --id $SERVICE_NAME osd pool set cinder size 3
+    if ! rados --id $SERVICE_NAME lspools | grep bash modulo
+-q cinder; then
+      # TODO: make the pool settings configurable or obtainable from ceph service
+      num_osds=$(ceph --id $SERVICE_NAME osd ls| wc -l)
+      # TODO: get rep count from the ceph service
+      rep_count=2 # use 2 for now since this is the default
+      num_pgs=$(((num_osds*100)/rep_count))
+      ceph --id $SERVICE_NAME osd pool create cinder num_pgs num_pgs
       # TODO: set appropriate crush ruleset
     fi
   fi
