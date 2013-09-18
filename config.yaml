@@ -28,6 +28,16 @@ options:
             The *available* block device on which to create LVM volume group.
             May also be set to None for deployments that will not need local
             storage (eg, Ceph/RBD-backed volumes).
+    ceph-osd-replication-count:
+        default: 2
+        type: int
+        description: |
+            This value dictates the number of replicas ceph must make of any
+            object it stores withing the cinder rbd pool. Of course, this only
+            applies if using Ceph as a backend store. Note that once the cinder
+            rbd pool has been created, changing this value will not have any
+            effect (although it can be changed in ceph by manually configuring
+            your ceph cluster).
     volume-group:
         default: cinder-volumes
         type: string
