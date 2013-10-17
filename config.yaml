@@ -48,11 +48,11 @@ options:
         description: |
             If true, charm will attempt to overwrite block devices containin
             previous filesystems or LVM, assuming it is not in use.
-    db-user:
+    database-user:
         default: cinder
         type: string
         description: Username to request database access.
-    cinder-db:
+    database:
         default: cinder
         type: string
         description: Database to request access.
@@ -72,6 +72,14 @@ options:
         default: RegionOne
         type: string
         description: OpenStack Region
+    glance-api-version:
+        default: 1
+        type: int
+        description: |
+          Newer storage drivers may require the v2 Glance API to perform certain
+          actions e.g. the RBD driver requires requires this to support COW
+          cloning of images. This option will default to v1 for backwards
+          compatibility older glance services.
     # HA configuration settings
     vip:
         type: string

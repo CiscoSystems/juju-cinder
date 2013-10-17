@@ -3,6 +3,8 @@ summary: Cinder OpenStack starage service
 maintainer: Adam Gandelman <adamg@canonical.com>
 description: |
  Cinder is a storage service for the Openstack project
+categories:
+  - miscellaneous
 provides:
   cinder-volume-service:
     interface: cinder

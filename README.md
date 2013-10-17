@@ -24,7 +24,8 @@ services deployed via Juju charms, specifically: mysql, rabbitmq-server,
 keystone and nova-cloud-controller.  The following assumes these services
 have already been deployed.
 
-a. Basic, all-in-one using local storage and iSCSI.
+Basic, all-in-one using local storage and iSCSI
+===============================================
 
 The api server, scheduler and volume service are all deployed into the same
 unit.  Local storage will be initialized as a LVM phsyical device, and a volume
@@ -32,66 +33,68 @@ group initialized.  Instance volumes will be created locally as logical volumes
 and exported to instances via iSCSI.  This is ideal for small-scale deployments
 or testing:
 
-    $ cat >cinder.cfg <<END
+    cat >cinder.cfg <<END
     cinder:
         block-device: sdc
         overwrite: true
     END
-    $ juju deploy --config=cinder.cfg cinder
-    $ juju add-relation cinder keystone
-    $ juju add-relation cinder mysql
-    $ juju add-relation cinder rabbitmq-server
-    $ juju add-relation cinder nova-cloud-controller
+    juju deploy --config=cinder.cfg cinder
+    juju add-relation cinder keystone
+    juju add-relation cinder mysql
+    juju add-relation cinder rabbitmq-server
+    juju add-relation cinder nova-cloud-controller
 
-b. Separate volume units for scale out, using local storage and iSCSI.
+Separate volume units for scale out, using local storage and iSCSI
+==================================================================
 
 Separating the volume service from the API service allows the storage pool
 to easily scale without the added complexity that accompanies load-balancing
-the API server.  When we've exhausted local storage on volume serve, we can
+the API server.  When we've exhausted local storage on volume server, we can
 simply add-unit to expand our capacity.  Future requests to allocate volumes
-will be distributed across the pool for volume servers according to the
+will be distributed across the pool of volume servers according to the
 availability of storage space.
 
-    $ cat >cinder.cfg <<END
+    cat >cinder.cfg <<END
     cinder-api:
         enabled-services: api, scheduler
     cinder-volume:
-        enabled-serfvices: volume
+        enabled-services: volume
         block-device: sdc
         overwrite: true
     END
-    $ juju deploy --config=cinder.cfg cinder cinder-api
-    $ juju deploy --config=cinder.cfg cinder cinder-api
-    $ juju add-relation cinder-api mysql
-    $ juju add-relation cinder-api rabbitmq-server
-    $ juju add-relation cinder-api keystone
-    $ juju add-relation cinder-api nova-cloud-controller
-    $ juju add-relation cinder-volume mysql
-    $ juju add-relation cinder-volume rabbitmq-server
+    juju deploy --config=cinder.cfg cinder cinder-api
+    juju deploy --config=cinder.cfg cinder cinder-volume
+    juju add-relation cinder-api mysql
+    juju add-relation cinder-api rabbitmq-server
+    juju add-relation cinder-api keystone
+    juju add-relation cinder-api nova-cloud-controller
+    juju add-relation cinder-volume mysql
+    juju add-relation cinder-volume rabbitmq-server
 
     # When more storage is needed, simply add more volume servers.
-    $ juju add-unit cinder-volume
+    juju add-unit cinder-volume
 
-c. All-in-one using Ceph-backed RBD volumes.
+All-in-one using Ceph-backed RBD volumes
+========================================
 
 All 3 services can be deployed to the same unit, but instead of relying
 on local storage to back volumes an external Ceph cluster is used.  This
 allows scalability and redundancy needs to be satisified and Cinder's RBD
 driver used to create, export and connect volumes to instances.  This assumes
 a functioning Ceph cluster has already been deployed using the official Ceph
-charm and a relation exists between the Ceph service and nova-compute.
+charm and a relation exists between the Ceph service and the nova-compute
 service.
 
-    $ cat >cinder.cfg <<END
+    cat >cinder.cfg <<END
     cinder:
         block-device: None
     END
-    $ juju deploy --config=cinder.cfg cinder
-    $ juju add-relation cinder ceph
-    $ juju add-relation cinder keystone
-    $ juju add-relation cinder mysql
-    $ juju add-relation cinder rabbitmq-server
-    $ juju add-relation cinder nova-cloud-controller
+    juju deploy --config=cinder.cfg cinder
+    juju add-relation cinder ceph
+    juju add-relation cinder keystone
+    juju add-relation cinder mysql
+    juju add-relation cinder rabbitmq-server
+    juju add-relation cinder nova-cloud-controller
 
 
 Configuration
