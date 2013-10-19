@@ -21,7 +21,7 @@ class ImageServiceContext(OSContextGenerator):
     def __call__(self):
         if not relation_ids('image-service'):
             return {}
-        return { 'glance_api_version': config('glance-api-version') }
+        return {'glance_api_version': config('glance-api-version')}
 
 
 class CephContext(OSContextGenerator):
@@ -32,6 +32,7 @@ class CephContext(OSContextGenerator):
         Used to generate template context to be added to cinder.conf in the
         presence of a ceph relation.
         """
+        # TODO: this should call is_relation_made
         if not relation_ids('ceph'):
             return {}
         service = service_name()

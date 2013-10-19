@@ -8,7 +8,7 @@ lint:
 
 test:
 	@echo Starting tests...
-	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage unit_tests
+	@$(PYTHON) /usr/bin/nosetests --nologcapture unit_tests
 
 sync:
 	@charm-helper-sync -c charm-helpers.yaml

@@ -1,4 +1,4 @@
-from mock import patch
+from mock import patch, call, MagicMock
 
 from collections import OrderedDict
 
@@ -28,6 +28,14 @@ TO_PATCH = [
     'ensure_loopback_device',
     'is_block_device',
     'zap_disk',
+    'get_os_codename_package',
+    'get_os_codename_install_source',
+    'configure_installation_source',
+    'eligible_leader',
+    'templating',
+    # fetch
+    'apt_update',
+    'apt_install'
 ]
 
 
@@ -204,6 +212,24 @@ class TestCinderUtils(CharmTestCase):
                           block_device='/dev/foobar',
                           volume_group='bar-vg')
 
+    def test_prepare_lvm_storage_clean(self):
+        self.is_lvm_physical_volume.return_value = False
+        cinder_utils.prepare_lvm_storage(block_device='/dev/foobar',
+                                         volume_group='bar-vg')
+        self.create_lvm_physical_volume.assert_called_with('/dev/foobar')
+        self.create_lvm_volume_group.assert_called_with('bar-vg',
+                                                        '/dev/foobar')
+
+    def test_prepare_lvm_storage_error(self):
+        self.is_lvm_physical_volume.return_value = False
+        self.create_lvm_physical_volume.side_effect = Exception()
+        # NOTE(jamespage) ensure general Exceptions mapped
+        # to CinderCharmError's
+        self.assertRaises(cinder_utils.CinderCharmError,
+                          cinder_utils.prepare_lvm_storage,
+                          block_device='/dev/foobar',
+                          volume_group='bar-vg')
+
     def test_migrate_database(self):
         '''It migrates database with cinder-manage'''
         with patch('subprocess.check_call') as check_call:
@@ -221,3 +247,101 @@ class TestCinderUtils(CharmTestCase):
         self.ceph_pool_exists.return_value = True
         cinder_utils.ensure_ceph_pool(service='cinder', replicas=3)
         self.assertFalse(self.ceph_create_pool.called)
+
+    @patch('os.path.exists')
+    def test_register_configs_apache(self, exists):
+        exists.return_value = False
+        self.get_os_codename_package.return_value = 'grizzly'
+        self.relation_ids.return_value = False
+        configs = cinder_utils.register_configs()
+        calls = []
+        for conf in [cinder_utils.CINDER_API_CONF,
+                     cinder_utils.CINDER_CONF,
+                     cinder_utils.APACHE_SITE_CONF,
+                     cinder_utils.HAPROXY_CONF]:
+            calls.append(
+                call(conf,
+                     cinder_utils.CONFIG_FILES[conf]['hook_contexts'])
+            )
+        configs.register.assert_has_calls(calls, any_order=True)
+
+    @patch('os.path.exists')
+    def test_register_configs_apache24(self, exists):
+        exists.return_value = True
+        self.get_os_codename_package.return_value = 'grizzly'
+        self.relation_ids.return_value = False
+        configs = cinder_utils.register_configs()
+        calls = []
+        for conf in [cinder_utils.CINDER_API_CONF,
+                     cinder_utils.CINDER_CONF,
+                     cinder_utils.APACHE_SITE_24_CONF,
+                     cinder_utils.HAPROXY_CONF]:
+            calls.append(
+                call(conf,
+                     cinder_utils.CONFIG_FILES[conf]['hook_contexts'])
+            )
+        configs.register.assert_has_calls(calls, any_order=True)
+
+    @patch('os.mkdir')
+    @patch('os.path.isdir')
+    @patch('os.path.exists')
+    def test_register_configs_ceph(self, exists, isdir, mkdir):
+        exists.return_value = False
+        isdir.return_value = False
+        self.get_os_codename_package.return_value = 'grizzly'
+        self.relation_ids.return_value = ['ceph:0']
+        configs = cinder_utils.register_configs()
+        calls = []
+        for conf in [cinder_utils.CINDER_API_CONF,
+                     cinder_utils.CINDER_CONF,
+                     cinder_utils.APACHE_SITE_CONF,
+                     cinder_utils.HAPROXY_CONF,
+                     cinder_utils.CEPH_CONF]:
+            calls.append(
+                call(conf,
+                     cinder_utils.CONFIG_FILES[conf]['hook_contexts'])
+            )
+        configs.register.assert_has_calls(calls, any_order=True)
+        mkdir.assert_called()
+
+    def test_set_ceph_kludge(self):
+        pass
+        """
+        def set_ceph_env_variables(service):
+            # XXX: Horrid kludge to make cinder-volume use
+            # a different ceph username than admin
+            env = open('/etc/environment', 'r').read()
+            if 'CEPH_ARGS' not in env:
+                with open('/etc/environment', 'a') as out:
+                    out.write('CEPH_ARGS="--id %s"\n' % service)
+            with open('/etc/init/cinder-volume.override', 'w') as out:
+                    out.write('env CEPH_ARGS="--id %s"\n' % service)
+        """
+
+    @patch.object(cinder_utils, 'migrate_database')
+    @patch.object(cinder_utils, 'determine_packages')
+    def test_openstack_upgrade_leader(self, pkgs, migrate):
+        pkgs.return_value = ['mypackage']
+        self.config.side_effect = None
+        self.config.return_value = 'cloud:precise-havana'
+        self.eligible_leader.return_value = True
+        self.get_os_codename_install_source.return_value = 'havana'
+        configs = MagicMock()
+        cinder_utils.do_openstack_upgrade(configs)
+        configs.write_all.assert_called()
+        configs.set_release.assert_called_with(openstack_release='havana')
+        migrate.assert_called()
+
+    @patch.object(cinder_utils, 'migrate_database')
+    @patch.object(cinder_utils, 'determine_packages')
+    def test_openstack_upgrade_not_leader(self, pkgs, migrate):
+        pkgs.return_value = ['mypackage']
+        self.config.side_effect = None
+        self.config.return_value = 'cloud:precise-havana'
+        self.eligible_leader.return_value = False
+        self.get_os_codename_install_source.return_value = 'havana'
+        configs = MagicMock()
+        cinder_utils.do_openstack_upgrade(configs)
+        configs.write_all.assert_called()
+        configs.set_release.assert_called_with(openstack_release='havana')
+        migrate.assert_not_called()

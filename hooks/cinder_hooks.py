@@ -265,12 +265,8 @@ def configure_https():
         identity_joined(rid=rid)
 
 
-def main():
+if __name__ == '__main__':
     try:
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         juju_log('Unknown hook {} - skipping.'.format(e))
-
-
-if __name__ == '__main__':
-    main()

@@ -40,6 +40,8 @@ TO_PATCH = [
     # charmhelpers.core.hookenv
     'config',
     'relation_set',
+    'relation_get',
+    'relation_ids',
     'service_name',
     'unit_get',
     # charmhelpers.core.host
@@ -50,6 +52,7 @@ TO_PATCH = [
     # charmhelpers.contrib.hahelpers.cluster_utils
     'eligible_leader',
     'get_hacluster_config',
+    'is_leader'
 ]
 
 
@@ -105,3 +108,27 @@ class TestClusterHooks(CharmTestCase):
             }
         }
         self.relation_set.assert_called_with(**ex_args)
+
+    @patch.object(hooks, 'identity_joined')
+    def test_ha_changed_clustered_not_leader(self, joined):
+        ''' Skip keystone notification if not cluster leader '''
+        self.relation_get.return_value = True
+        self.is_leader.return_value = False
+        hooks.hooks.execute(['hooks/ha-relation-changed'])
+        joined.assert_not_called()
+
+    @patch.object(hooks, 'identity_joined')
+    def test_ha_changed_clustered_leader(self, joined):
+        ''' Notify keystone if cluster leader '''
+        self.relation_get.return_value = True
+        self.is_leader.return_value = True
+        self.relation_ids.return_value = ['identity:0']
+        hooks.hooks.execute(['hooks/ha-relation-changed'])
+        joined.assert_called_with(rid='identity:0')
+
+    def test_ha_changed_not_clustered(self):
+        ''' Ensure ha_changed exits early if not yet clustered '''
+        self.relation_get.return_value = None
+        hooks.hooks.execute(['hooks/ha-relation-changed'])
+        self.juju_log.assert_called()
+        self.is_leader.assert_not_called()
