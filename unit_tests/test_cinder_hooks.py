@@ -297,7 +297,7 @@ class TestJoinedHooks(CharmTestCase):
         # NOTE(jamespage): If ensure_ceph keyring fails, then
         # the hook should just exit 0 and return.
         self.juju_log.assert_called()
-        self.CONFIGS.write.assert_not_called()
+        self.assertFalse(self.CONFIGS.write.called)
 
     def test_ceph_changed_no_leadership(self):
         '''It does not attempt to create ceph pool if not leader'''

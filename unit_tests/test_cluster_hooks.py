@@ -115,7 +115,7 @@ class TestClusterHooks(CharmTestCase):
         self.relation_get.return_value = True
         self.is_leader.return_value = False
         hooks.hooks.execute(['hooks/ha-relation-changed'])
-        joined.assert_not_called()
+        self.assertFalse(joined.called)
 
     @patch.object(hooks, 'identity_joined')
     def test_ha_changed_clustered_leader(self, joined):
@@ -131,4 +131,4 @@ class TestClusterHooks(CharmTestCase):
         self.relation_get.return_value = None
         hooks.hooks.execute(['hooks/ha-relation-changed'])
         self.juju_log.assert_called()
-        self.is_leader.assert_not_called()
+        self.assertFalse(self.is_leader.called)

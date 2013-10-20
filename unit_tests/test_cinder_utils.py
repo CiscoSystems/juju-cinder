@@ -344,4 +344,4 @@ class TestCinderUtils(CharmTestCase):
         cinder_utils.do_openstack_upgrade(configs)
         configs.write_all.assert_called()
         configs.set_release.assert_called_with(openstack_release='havana')
-        migrate.assert_not_called()
+        self.assertFalse(migrate.called)
