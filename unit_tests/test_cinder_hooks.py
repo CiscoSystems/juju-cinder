@@ -207,6 +207,16 @@ class TestChangedHooks(CharmTestCase):
         self.check_call.assert_called_with(cmd)
         identity_joined.assert_called_with(rid='identity-service:0')
 
+    def test_image_service_changed(self):
+        ''' Ensure all configuration files written if image service changes '''
+        hooks.hooks.execute(['hooks/image-service-relation-changed'])
+        self.CONFIGS.write.assert_called_with('/etc/cinder/cinder.conf')
+
+    def test_relation_broken(self):
+        ''' Ensure all configuration files written if image service changes '''
+        hooks.hooks.execute(['hooks/image-service-relation-broken'])
+        self.assertTrue(self.CONFIGS.write_all.called)
+
 
 class TestJoinedHooks(CharmTestCase):
     def setUp(self):
@@ -244,6 +254,7 @@ class TestJoinedHooks(CharmTestCase):
     def test_identity_service_joined_no_leadership(self):
         '''It does nothing on identity-joined when not eligible leader'''
         self.eligible_leader.return_value = False
+        hooks.hooks.execute(['hooks/identity-service-relation-joined'])
         self.assertFalse(self.relation_set.called)
 
     @patch('os.mkdir')
@@ -276,6 +287,17 @@ class TestJoinedHooks(CharmTestCase):
                   call('/etc/cinder/cinder.conf')]:
             self.assertIn(c, self.CONFIGS.write.call_args_list)
         self.set_ceph_env_variables.assert_called_with(service='cinder')
+
+    def test_ceph_changed_no_keys(self):
+        '''It ensures ceph assets created on ceph changed'''
+        self.CONFIGS.complete_contexts.return_value = ['ceph']
+        self.service_name.return_value = 'cinder'
+        self.ensure_ceph_keyring.return_value = False
+        hooks.hooks.execute(['hooks/ceph-relation-changed'])
+        # NOTE(jamespage): If ensure_ceph keyring fails, then
+        # the hook should just exit 0 and return.
+        self.assertTrue(self.juju_log.called)
+        self.assertFalse(self.CONFIGS.write.called)
 
     def test_ceph_changed_no_leadership(self):
         '''It does not attempt to create ceph pool if not leader'''
