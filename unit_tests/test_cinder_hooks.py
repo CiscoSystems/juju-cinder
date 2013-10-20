@@ -210,12 +210,12 @@ class TestChangedHooks(CharmTestCase):
     def test_image_service_changed(self):
         ''' Ensure all configuration files written if image service changes '''
         hooks.hooks.execute(['hooks/image-service-relation-changed'])
-        self.CONFIGS.write_all.assert_called()
+        self.CONFIGS.write.assert_called_with('/etc/cinder/cinder.conf')
 
     def test_relation_broken(self):
         ''' Ensure all configuration files written if image service changes '''
         hooks.hooks.execute(['hooks/image-service-relation-broken'])
-        self.CONFIGS.write_all.assert_called()
+        self.assertTrue(self.CONFIGS.write_all.called)
 
 
 class TestJoinedHooks(CharmTestCase):
@@ -296,7 +296,7 @@ class TestJoinedHooks(CharmTestCase):
         hooks.hooks.execute(['hooks/ceph-relation-changed'])
         # NOTE(jamespage): If ensure_ceph keyring fails, then
         # the hook should just exit 0 and return.
-        self.juju_log.assert_called()
+        self.assertTrue(self.juju_log.called)
         self.assertFalse(self.CONFIGS.write.called)
 
     def test_ceph_changed_no_leadership(self):

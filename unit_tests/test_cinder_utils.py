@@ -302,7 +302,7 @@ class TestCinderUtils(CharmTestCase):
                      cinder_utils.CONFIG_FILES[conf]['hook_contexts'])
             )
         configs.register.assert_has_calls(calls, any_order=True)
-        mkdir.assert_called()
+        self.assertTrue(mkdir.called)
 
     def test_set_ceph_kludge(self):
         pass
@@ -328,9 +328,9 @@ class TestCinderUtils(CharmTestCase):
         self.get_os_codename_install_source.return_value = 'havana'
         configs = MagicMock()
         cinder_utils.do_openstack_upgrade(configs)
-        configs.write_all.assert_called()
+        self.assertTrue(configs.write_all.called)
         configs.set_release.assert_called_with(openstack_release='havana')
-        migrate.assert_called()
+        self.assertTrue(migrate.called)
 
     @patch.object(cinder_utils, 'migrate_database')
     @patch.object(cinder_utils, 'determine_packages')
@@ -342,6 +342,6 @@ class TestCinderUtils(CharmTestCase):
         self.get_os_codename_install_source.return_value = 'havana'
         configs = MagicMock()
         cinder_utils.do_openstack_upgrade(configs)
-        configs.write_all.assert_called()
+        self.assertTrue(configs.write_all.called)
         configs.set_release.assert_called_with(openstack_release='havana')
         self.assertFalse(migrate.called)

@@ -130,5 +130,5 @@ class TestClusterHooks(CharmTestCase):
         ''' Ensure ha_changed exits early if not yet clustered '''
         self.relation_get.return_value = None
         hooks.hooks.execute(['hooks/ha-relation-changed'])
-        self.juju_log.assert_called()
+        self.assertTrue(self.juju_log.called)
         self.assertFalse(self.is_leader.called)
