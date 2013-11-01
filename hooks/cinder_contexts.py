@@ -25,7 +25,7 @@ class ImageServiceContext(OSContextGenerator):
 
 
 class CephContext(OSContextGenerator):
-    interfaces = ['ceph']
+    interfaces = ['ceph-cinder']
 
     def __call__(self):
         """
