@@ -46,7 +46,7 @@ class CephContext(OSContextGenerator):
 
 
 class HAProxyContext(OSContextGenerator):
-    interfaces = ['ceph']
+    interfaces = ['cinder-haproxy']
 
     def __call__(self):
         '''
