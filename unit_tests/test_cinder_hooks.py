@@ -126,6 +126,18 @@ class TestChangedHooks(CharmTestCase):
         super(TestChangedHooks, self).setUp(hooks, TO_PATCH)
         self.config.side_effect = self.test_config.get_all
 
+    @patch.object(hooks, 'amqp_joined')
+    def test_upgrade_charm_no_amqp(self, _joined):
+        self.relation_ids.return_value = []
+        hooks.hooks.execute(['hooks/upgrade-charm'])
+        _joined.assert_not_called()
+
+    @patch.object(hooks, 'amqp_joined')
+    def test_upgrade_charm_with_amqp(self, _joined):
+        self.relation_ids.return_value = ['amqp:1']
+        hooks.hooks.execute(['hooks/upgrade-charm'])
+        _joined.assert_called_with(relation_id='amqp:1')
+
     @patch.object(hooks, 'configure_https')
     def test_config_changed(self, conf_https):
         '''It writes out all config'''
@@ -234,7 +246,17 @@ class TestJoinedHooks(CharmTestCase):
     def test_amqp_joined(self):
         '''It properly requests access to an amqp service'''
         hooks.hooks.execute(['hooks/amqp-relation-joined'])
-        self.relation_set.assert_called_with(username='cinder', vhost='cinder')
+        self.relation_set.assert_called_with(username='cinder',
+                                             vhost='openstack',
+                                             relation_id=None)
+
+    def test_amqp_joined_passes_relation_id(self):
+        ''' Ensures relation_id correct passed to relation_set for out of
+            hook execution '''
+        hooks.amqp_joined(relation_id='amqp:1')
+        self.relation_set.assert_called_with(username='cinder',
+                                             vhost='openstack',
+                                             relation_id='amqp:1')
 
     def test_identity_service_joined(self):
         '''It properly requests unclustered endpoint via identity-service'''

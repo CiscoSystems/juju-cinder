@@ -61,7 +61,7 @@ options:
         type: string
         description: Username to request access on rabbitmq-server.
     rabbit-vhost:
-        default: cinder
+        default: openstack
         type: string
         description: RabbitMQ virtual host to request access on rabbitmq-server.
     api-listening-port:
